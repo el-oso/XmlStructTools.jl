@@ -25,11 +25,23 @@ function create_xsd_tree(xsd_root::XMLElement)::SchemaTreeNode
     @debug "Starting to create xsd tree"
 
     node_attributes = xsd_attributes_dict(xsd_root)
-    # the schema root declares (at least) two xmlns bindings: the target namespace (this schema's
-    # own name) and "xsi" (XMLSchema-instance, unrelated) - pugixml exposes xmlns:* as ordinary
-    # attributes, so the target namespace is simply the one xmlns:* key that isn't "xmlns:xsi".
-    xmlns_keys = filter(k -> startswith(k, "xmlns:") && k != "xmlns:xsi", collect(keys(node_attributes)))
-    isempty(xmlns_keys) && error("No target namespace xmlns declaration found on the schema root element.")
+    # The schema root declares several xmlns bindings (its own target namespace, the XMLSchema
+    # meta-namespace, often xsi too) under whatever prefixes the schema author happened to pick -
+    # some schemas bind the XMLSchema meta-namespace to "xs"/"xsd" and leave their OWN target
+    # namespace on the unprefixed default xmlns (real-world ISO 20022 schemas do this), which is
+    # the opposite convention from this repo's own test fixtures (explicit prefix for their own
+    # namespace, default xmlns for the meta-namespace) - excluding known meta-prefixes by name
+    # guesses (just "xsi") silently picked the wrong one. Matching by VALUE against the schema's
+    # own declared targetNamespace is unambiguous regardless of prefix-naming convention.
+    haskey(node_attributes, "targetNamespace") ||
+        error("Given XSD has no targetNamespace attribute on its schema root element.")
+    target_namespace = node_attributes["targetNamespace"]
+    xmlns_keys = filter(
+        k -> startswith(k, "xmlns:") && node_attributes[k] == target_namespace,
+        collect(keys(node_attributes)),
+    )
+    isempty(xmlns_keys) &&
+        error("No xmlns declaration bound to the schema's targetNamespace found on the schema root element.")
     xml_namespace = last(split(first(xmlns_keys), ":"))
 
     child_nodes = Vector{AbstractTreeNode}()
