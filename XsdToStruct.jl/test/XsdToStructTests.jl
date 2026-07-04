@@ -1,6 +1,7 @@
 module XsdToStructTests
 
 using ReTest
+import Test
 using Logging
 using XsdToStruct
 using TimeZones
@@ -23,5 +24,6 @@ include("test_utilities.jl")
 include("test_xsd_reader.jl")
 include("test_xsd_module_generator.jl")
 include("test_generated_module.jl")
+include("test_real_world_schemas.jl")
 
 end
