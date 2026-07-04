@@ -40,9 +40,15 @@ function create_xsd_tree(xsd_root::XMLElement)::SchemaTreeNode
         k -> startswith(k, "xmlns:") && node_attributes[k] == target_namespace,
         collect(keys(node_attributes)),
     )
-    isempty(xmlns_keys) &&
-        error("No xmlns declaration bound to the schema's targetNamespace found on the schema root element.")
-    xml_namespace = last(split(first(xmlns_keys), ":"))
+    xml_namespace = if !isempty(xmlns_keys)
+        last(split(first(xmlns_keys), ":"))
+    else
+        # No explicit prefix is bound to the target namespace - the schema puts its own namespace
+        # on the unprefixed default xmlns instead (real-world ISO 20022 schemas do this). Derive a
+        # module name from the namespace URI itself rather than erroring, since this is a valid
+        # and common XSD authoring style, not a malformed schema.
+        derive_namespace_name(target_namespace)
+    end
 
     child_nodes = Vector{AbstractTreeNode}()
     group_nodes = Vector{ComplexTreeNode}()

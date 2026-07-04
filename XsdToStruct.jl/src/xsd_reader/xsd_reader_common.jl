@@ -39,3 +39,18 @@ function get_xsd_docstring(
 end
 
 sub_module_name(parent_name::AbstractString)::String = "$(parent_name)Types"
+
+"""
+	derive_namespace_name(target_namespace::AbstractString)::String
+
+Fallback module name for a schema whose target namespace has no explicit xmlns prefix bound to it
+(so there is no author-chosen short name to read off the schema root element directly). Takes the
+last segment of the namespace URI/URN (handles both "urn:...:pacs.008.001.09"-style and
+"http://example.com/foo/bar"-style namespaces) and sanitizes it into a valid Julia identifier,
+matching the sanitization xsd_to_struct_module already applies to filename-derived module names.
+"""
+function derive_namespace_name(target_namespace::AbstractString)::String
+    last_segment = target_namespace |> x -> split(x, r"[:/]") |> x -> filter(!isempty, x) |> last
+    sanitized = replace(last_segment, forbidden_characters_regex => "_")
+    return isdigit(first(sanitized)) ? "_$sanitized" : sanitized
+end

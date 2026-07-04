@@ -39,6 +39,8 @@ function parse_complex_content!(complex_node::ComplexTreeNode, xsd_complex_conte
         parse_xsd_complex_content_group!(complex_node, xsd_complex_content)
     elseif xsd_content_name == "choice"
         parse_xsd_complex_content_choice!(complex_node, xsd_complex_content)
+    elseif xsd_content_name == "any"
+        parse_xsd_complex_content_any!(complex_node, xsd_complex_content)
     else
         @warn "Unhandled child:\n$(xsd_complex_content)"
     end
@@ -70,6 +72,23 @@ function parse_xsd_complex_content_element!(complex_node::ComplexTreeNode, xsd_e
         push!(complex_node.field_ordering, field_data.name)
     end
 
+    return nothing
+end
+
+"""
+	parse_xsd_complex_content_any!(complex_node, xsd_any)
+
+xs:any is an XML Schema wildcard ("arbitrary content from any/other namespace goes here" -
+extensibility points like ISO 20022's SupplementaryData envelope use this). It has no name
+attribute and no fixed type, so there's no principled Julia type to generate for it - represented
+as a plain String field (raw, unvalidated) named "AnyContent" rather than left as a silently
+unhandled child, which used to leave the containing complexType (and anything depending on it)
+permanently unresolvable by the module builder's dependency loop.
+"""
+function parse_xsd_complex_content_any!(complex_node::ComplexTreeNode, ::XMLElement)::Nothing
+    field_data = FieldData(name = "AnyContent", xsd_type = "string")
+    push!(complex_node.fields, field_data)
+    push!(complex_node.field_ordering, field_data.name)
     return nothing
 end
 
