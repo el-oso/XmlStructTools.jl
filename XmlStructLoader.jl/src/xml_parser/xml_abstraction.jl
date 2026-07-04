@@ -42,7 +42,7 @@ function AbstractTrees.children(node::L)::Vector{L} where {L<:XmlStructLoaderNod
     xml_children = children(node.node)
 
     r = map(xml_children) do child
-        type = get_base_field_type(node.type, Symbol(name(child)))
+        type = get_base_field_type(node.type, tag_symbol(name(child)))
         return XmlStructLoaderNode(child, type, node)
     end
     return r
@@ -58,7 +58,7 @@ AbstractTrees.SiblingLinks(::Type{<:XmlStructLoaderNode}) = AbstractTrees.Stored
 function AbstractTrees.nextsibling(node::XmlStructLoaderNode)
     if hasnextelement(node.node)
         sibling = nextelement(node.node)
-        sibling_type = get_base_field_type(node.parent.type, Symbol(name(sibling)))
+        sibling_type = get_base_field_type(node.parent.type, tag_symbol(name(sibling)))
         return XmlStructLoaderNode(sibling, sibling_type, node.parent)
     else
         return nothing
@@ -70,7 +70,7 @@ end
 
 function _get_default(@nospecialize(ParentType::Type), @nospecialize(child::UnifiedXMLElement))
     defaults = AbstractXsdTypes.defaults(ParentType)
-    field = name(child) |> Symbol
+    field = tag_symbol(name(child))
     child_default = get(defaults, field, nothing)
     return child_default
 end

@@ -62,6 +62,26 @@ for (module_dir, xml_files) in generic_test_files
     end
 end
 
+# large synthetic fixture (fixtures/large_synthetic.{xsd,xml}) - regenerate the .xml with
+# gen_large_fixture.jl [N] if a different record count is needed; the module is regenerated here.
+large_xsd = joinpath(HERE, "fixtures", "large_synthetic.xsd")
+large_xml = joinpath(HERE, "fixtures", "large_synthetic.xml")
+if isfile(large_xsd) && isfile(large_xml)
+    using XsdToStruct: xsd_to_struct_module
+    xsd_to_struct_module(large_xsd, joinpath(HERE, "fixtures"))
+    large_module_ref = XmlStructLoader.import_module_from_xml(large_xml, joinpath(HERE, "fixtures", "large_synthetic"))
+    b = @be XmlStructLoader.load($large_xml, $large_module_ref) seconds = 5
+    r = stats(b)
+    n_entries = length(XmlStructLoader.load(large_xml, large_module_ref).Entry)
+    println(
+        "  large_synthetic ($(n_entries) entries):  median=$(round(r.median * 1e3, digits = 2))ms  (n=$(r.n), relsigma=$(round(100r.relsigma, digits = 1))%)",
+    )
+    out["large_synthetic"] =
+        Dict("median_s" => r.median, "relsigma" => r.relsigma, "n" => r.n, "samples" => r.samples, "n_entries" => n_entries)
+else
+    @warn "large_synthetic fixture missing - run `julia --project=bench bench/gen_large_fixture.jl` first"
+end
+
 resdir = joinpath(HERE, "results")
 mkpath(resdir)
 resfile = joinpath(resdir, "loader_baseline.json")

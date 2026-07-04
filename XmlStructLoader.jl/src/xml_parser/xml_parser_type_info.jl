@@ -77,3 +77,13 @@ function get_base_field_type(@nospecialize(T::Type), field_symbol::Symbol)
 
     return field_type
 end
+
+const tag_symbol_cache = Dict{String,Symbol}()
+
+"""
+	tag_symbol(tag_name::AbstractString)::Symbol
+
+Cached `Symbol(tag_name)` - a schema's tag-name universe is small and fixed, but this is called
+once per XML node visited, so an uncached `Symbol()` call per node adds up on large documents.
+"""
+tag_symbol(tag_name::AbstractString)::Symbol = get!(() -> Symbol(tag_name), tag_symbol_cache, tag_name)
