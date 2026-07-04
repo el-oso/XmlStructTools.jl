@@ -13,6 +13,19 @@
 !bench/fixtures/**
 !bench/results/**
 
+# Allow backend-shim source/build-recipe files (Phase 2 bake-off), but not build output
+# (target/, *.so, compiled test binaries stay ignored by the blanket rule above)
+!bench/pugixml_shim/*.cpp
+!bench/pugixml_shim/*.hpp
+!bench/pugixml_shim/Makefile
+!bench/pugixml_shim/vendor/*.cpp
+!bench/pugixml_shim/vendor/*.hpp
+!bench/pugixml_shim/vendor/LICENSE.md
+!bench/quickxml_shim/**/*.rs
+!bench/quickxml_shim/Cargo.toml
+!bench/quickxml_shim/Cargo.lock
+!bench/quickxml_shim/.gitignore
+
 # Allow specific files
 !.gitignore
 !Project.toml
