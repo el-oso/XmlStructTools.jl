@@ -30,12 +30,11 @@ function get_module_symbol(xml_io::IO)::Symbol
 end
 
 function import_module(module_path::AbstractString, module_symbol::Symbol)::Module
-    include(module_path)
-
     if isdefined(XmlStructLoader, module_symbol)
-        @info "Module $module_symbol already loaded"
+        @debug "Module $module_symbol already loaded"
     else
-        @info "Loading module $module_symbol"
+        @debug "Loading module $module_symbol"
+        include(module_path)
         eval(:(@reexport import .$module_symbol))
     end
 
@@ -44,9 +43,9 @@ end
 
 function use_module(module_path::AbstractString, module_symbol::Symbol)::Module
     if isdefined(XmlStructLoader, module_symbol)
-        @info "Module $module_symbol already loaded"
+        @debug "Module $module_symbol already loaded"
     else
-        @info "Loading module $module_symbol"
+        @debug "Loading module $module_symbol"
 
         include(module_path)
         eval(:(@reexport using .$module_symbol))

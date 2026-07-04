@@ -11,12 +11,12 @@ hasattributes(node::EzXML.Node) = !isempty(eachattribute(node))
 haschildren(node::EzXML.Node) = haselement(node)
 
 function readxmlfile(f::Function, filename::AbstractString)
-    @info "Loading with EzXML..."
+    @debug "Loading with EzXML..."
     return f(EzXML.readxml(filename))
 end
 
 function readxmlfile(f::Function, io::IO)
-    @info "Loading with EzXML..."
+    @debug "Loading with EzXML..."
     return f(EzXML.readxml(io))
 end
 

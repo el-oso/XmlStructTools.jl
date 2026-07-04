@@ -34,7 +34,7 @@ function write_struct_module_to_io(xsd_module_builder::XSDStructModuleBuilderTyp
 
         loops += 1
         missing_nodes = length(xsd_module_builder.skipped_nodes)
-        @info "Loops over skipped nodes =  $loops, $missing_nodes nodes still missing."
+        @debug "Loops over skipped nodes =  $loops, $missing_nodes nodes still missing."
 
         @debug "Defined node names:\n$(defined_node_names(xsd_module_builder))"
         @debug "Skipped node names:\n$(skipped_node_names(xsd_module_builder))"
