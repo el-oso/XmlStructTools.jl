@@ -1,3 +1,3 @@
-include("XmlStructPugixmlTests.jl")
+using ReTestItems, XmlStructPugixml
 
-XmlStructPugixmlTests.runtests()
+runtests(XmlStructPugixml)

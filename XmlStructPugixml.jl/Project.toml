@@ -1,7 +1,7 @@
 name = "XmlStructPugixml"
 uuid = "69c5dbe4-038b-4614-a603-8f259d1fd840"
-authors = ["Tom Lemmens", "Jorge Vieyra"]
 version = "0.1.0"
+authors = ["Tom Lemmens", "Jorge Vieyra"]
 
 [deps]
 pugixml_jll = "ef860afa-341e-548b-93de-15e6b165854a"
