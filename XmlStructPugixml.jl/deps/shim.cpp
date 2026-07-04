@@ -31,6 +31,20 @@ void* pugishim_parse_file(const char* path) {
     return doc;
 }
 
+// Parse an in-memory buffer of `size` bytes (not necessarily null-terminated).
+// For loading from an arbitrary Julia IO (read fully into a Vector{UInt8} on
+// the Julia side, then pass its pointer here) rather than a file path.
+// Returns an opaque xml_document* handle, or nullptr on parse failure.
+void* pugishim_parse_buffer(const char* data, size_t size) {
+    pugi::xml_document* doc = new pugi::xml_document();
+    pugi::xml_parse_result result = doc->load_buffer(data, size);
+    if (!result) {
+        delete doc;
+        return nullptr;
+    }
+    return doc;
+}
+
 // Free a document handle returned by pugishim_parse_file. Invalidates every
 // node/attribute handle obtained from it.
 void pugishim_free_doc(void* doc) {

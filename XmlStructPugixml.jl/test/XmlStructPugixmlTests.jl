@@ -23,6 +23,15 @@ end
     @test parse_file(joinpath(@__DIR__, "does_not_exist.xml")) == C_NULL
 end
 
+@testset "parse_buffer matches parse_file" begin
+    doc = parse_buffer(read(fixture))
+    @test doc != C_NULL
+    @test node_name(root(doc)) == "TestComplexAndSimple:document"
+    free_doc(doc)
+
+    @test parse_buffer(UInt8[]) == C_NULL
+end
+
 @testset "write then read back round-trips" begin
     doc = new_doc()
     n = doc_as_node(doc)

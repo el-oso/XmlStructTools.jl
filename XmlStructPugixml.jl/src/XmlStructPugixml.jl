@@ -8,6 +8,7 @@ else
 end
 
 export parse_file,
+    parse_buffer,
     free_doc,
     root,
     node_name,
@@ -36,6 +37,22 @@ Call [`free_doc`](@ref) exactly once on the returned handle when done. Returns `
 file could not be parsed (bad path, malformed XML).
 """
 parse_file(path::AbstractString)::Ptr{Cvoid} = ccall((:pugishim_parse_file, libxmlstructpugixml), Ptr{Cvoid}, (Cstring,), path)
+
+"""
+    parse_buffer(data::AbstractVector{UInt8})::Ptr{Cvoid}
+
+Parse an in-memory buffer of XML bytes (e.g. `read(io)` on an arbitrary `IO`) into a document,
+returning an owning handle exactly like [`parse_file`](@ref). Returns `C_NULL` on parse failure.
+"""
+function parse_buffer(data::AbstractVector{UInt8})::Ptr{Cvoid}
+    return GC.@preserve data ccall(
+        (:pugishim_parse_buffer, libxmlstructpugixml),
+        Ptr{Cvoid},
+        (Ptr{UInt8}, Csize_t),
+        data,
+        length(data),
+    )
+end
 
 """
     free_doc(doc::Ptr{Cvoid})::Nothing
