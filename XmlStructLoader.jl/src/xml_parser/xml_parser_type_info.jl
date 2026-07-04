@@ -1,4 +1,3 @@
-
 """
 	(type_in_module(::Type{T}, module_ref::Module)::Bool) where T <: Any
 
@@ -12,6 +11,13 @@ Walks T's module ancestry looking for module_ref, rather than checking name memb
 module's own defined types, misrouting base-typed fields into the custom-struct parsing path.
 """
 function type_in_module(@nospecialize(T::Type), module_ref::Module)::Bool
+    # An unrestricted xs:dateTime field's julia_type is the literal Union{ZonedDateTime,DateTime}
+    # (built_in_data_type_dict), not a single concrete type - parentmodule() doesn't accept a
+    # Union at all, and a Union of stdlib alternatives is never a single user-generated struct
+    # type regardless, so short-circuit before ever calling parentmodule on it. (A schema-defined
+    # dateTime-restricting simpleType, e.g. ISO 20022's "ISODateTime", is a concrete struct - not a
+    # Union - so it still reaches the walk below and correctly resolves as in-module.)
+    T isa Union && return false
     m = parentmodule(T)
     while true
         m === module_ref && return true
@@ -19,14 +25,8 @@ function type_in_module(@nospecialize(T::Type), module_ref::Module)::Bool
         parent === m && return false  # reached the top of the module hierarchy (Main/Base/Core)
         m = parent
     end
+    return
 end
-
-"""
-	type_in_module(::Type{ZonedDateTime}, ::Module)
-
-Handles special edge case that should always return false.
-"""
-type_in_module(::Type{T}, ::Module) where {T<:Dates.AbstractTime} = false
 
 """
 	get_field_type(::Type{T}, field_specification::Union{Symbol, Int}) where T <: Any
@@ -49,9 +49,9 @@ end
 # Deliberate open-tail dict, not a candidate for compile-time (dispatch/const) ownership: T ranges
 # over every struct type any user's schema might generate, at the user's own runtime - an
 # unbounded, not-known-until-`include()`-time key set, not a closed type domain.
-const field_type_cache = Dict{Tuple{DataType,Symbol},DataType}()
+const field_type_cache = Dict{Tuple{DataType, Symbol}, DataType}()
 
-get_type_from_symbol(type_symbol::Tuple{DataType,Symbol}) = get(field_type_cache, type_symbol, Nothing)
+get_type_from_symbol(type_symbol::Tuple{DataType, Symbol}) = get(field_type_cache, type_symbol, Nothing)
 
 function get_base_field_type(@nospecialize(T::Type), field_symbol::Symbol)
     field_type = get_type_from_symbol((T, field_symbol))
@@ -62,7 +62,10 @@ function get_base_field_type(@nospecialize(T::Type), field_symbol::Symbol)
         elseif hasfield(T, field_symbol)
             field_type = fieldtype(T, field_symbol)
         elseif T <: AbstractVector
-            field_type = fieldtype(eltype(T), field_symbol)
+            # recurse rather than fieldtype(eltype(T), field_symbol) directly: the element type
+            # can itself be a choice type (field_symbol living inside a NamedTuple, not a direct
+            # struct field), same as the plain non-vector case just below.
+            field_type = get_base_field_type(eltype(T), field_symbol)
         else
             # field could be inside NamedTuple
             named_tuples = filter(field_type -> field_type <: NamedTuple, fieldtypes(T))
@@ -83,7 +86,7 @@ end
 
 # Same as field_type_cache above: tag names are open across all possible schemas, not a closed
 # domain - a deliberate dict fallback, not a gap to close with dispatch.
-const tag_symbol_cache = Dict{String,Symbol}()
+const tag_symbol_cache = Dict{String, Symbol}()
 
 """
 	tag_symbol(tag_name::AbstractString)::Symbol
