@@ -13,7 +13,6 @@ using AbstractXsdTypes
 
 include(joinpath("xml_parser", "xml_parser.jl"))
 include("xml_module_utilities.jl")
-include("precompilation.jl")
 
 export load, import_module_from_xml, use_module_from_xml
 
