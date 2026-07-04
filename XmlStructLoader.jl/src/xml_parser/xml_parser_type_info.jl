@@ -46,6 +46,9 @@ function get_base_field_type(@nospecialize(T::Type), field_index::Int)::DataType
     return field_type
 end
 
+# Deliberate open-tail dict, not a candidate for compile-time (dispatch/const) ownership: T ranges
+# over every struct type any user's schema might generate, at the user's own runtime - an
+# unbounded, not-known-until-`include()`-time key set, not a closed type domain.
 const field_type_cache = Dict{Tuple{DataType,Symbol},DataType}()
 
 get_type_from_symbol(type_symbol::Tuple{DataType,Symbol}) = get(field_type_cache, type_symbol, Nothing)
@@ -78,6 +81,8 @@ function get_base_field_type(@nospecialize(T::Type), field_symbol::Symbol)
     return field_type
 end
 
+# Same as field_type_cache above: tag names are open across all possible schemas, not a closed
+# domain - a deliberate dict fallback, not a gap to close with dispatch.
 const tag_symbol_cache = Dict{String,Symbol}()
 
 """
