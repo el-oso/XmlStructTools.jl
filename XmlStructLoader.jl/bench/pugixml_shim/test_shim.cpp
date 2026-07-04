@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <unistd.h>
 
 extern "C" {
     void* pugishim_parse_file(const char* path);
@@ -23,6 +24,13 @@ extern "C" {
     void* pugishim_next_attribute(void* attr);
     const char* pugishim_attribute_name(void* attr);
     const char* pugishim_attribute_value(void* attr);
+
+    void* pugishim_new_doc();
+    void* pugishim_doc_as_node(void* doc);
+    void* pugishim_append_child_element(void* node, const char* name);
+    int   pugishim_set_node_text(void* node, const char* text);
+    void* pugishim_append_attribute(void* node, const char* name, const char* value);
+    int   pugishim_save_file(void* doc, const char* path);
 }
 
 static int failures = 0;
@@ -39,6 +47,80 @@ static void print_attributes(void* node, const char* label) {
         n++;
     }
     if (n == 0) std::printf("    (none)\n");
+}
+
+// Builds a small document with the write-side functions, matching the shape
+// of this project's real documents (namespace-prefixed root tag, xmlns/xsi
+// attributes -- see basic_types.xml), saves it to a file, then reads that
+// file back with the *read*-side functions and checks the round-tripped
+// structure matches what was written. This is the real correctness check --
+// not just "didn't crash".
+static void test_write_and_readback() {
+    void* doc = pugishim_new_doc();
+    CHECK(doc != nullptr, "new_doc returns a handle");
+
+    void* doc_node = pugishim_doc_as_node(doc);
+    void* root = pugishim_append_child_element(doc_node, "TestNamespace:document");
+    CHECK(root != nullptr, "append root element on doc-as-node");
+    pugishim_append_attribute(root, "xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
+    pugishim_append_attribute(root, "xsi:schemaLocation", "TestNamespace basic_types.xsd");
+
+    void* child1 = pugishim_append_child_element(root, "TestElement2");
+    CHECK(child1 != nullptr, "append first child element");
+    CHECK(pugishim_set_node_text(child1, "99A9") == 1, "set first child text");
+    pugishim_append_attribute(child1, "units", "count");
+
+    void* child2 = pugishim_append_child_element(root, "TestElement1");
+    CHECK(child2 != nullptr, "append second child element");
+    void* grandchild = pugishim_append_child_element(child2, "Element_string");
+    CHECK(grandchild != nullptr, "append nested grandchild element");
+    CHECK(pugishim_set_node_text(grandchild, "aaaa") == 1, "set grandchild text");
+
+    char path[] = "/tmp/pugishim_write_roundtrip_XXXXXX";
+    int fd = mkstemp(path);
+    CHECK(fd != -1, "mkstemp for roundtrip output");
+    close(fd);
+    CHECK(pugishim_save_file(doc, path) == 1, "save_file succeeds");
+    pugishim_free_doc(doc);
+
+    // --- read the saved file back with the read-side shim functions -----
+    void* rdoc = pugishim_parse_file(path);
+    CHECK(rdoc != nullptr, "parse written file back");
+    void* rroot = pugishim_root(rdoc);
+    CHECK(rroot != nullptr, "written file has root element");
+    CHECK(std::strcmp(pugishim_node_name(rroot), "TestNamespace:document") == 0, "root tag round-trips");
+
+    bool saw_xmlns_xsi = false, saw_schema_loc = false;
+    for (void* a = pugishim_first_attribute(rroot); a; a = pugishim_next_attribute(a)) {
+        const char* n = pugishim_attribute_name(a);
+        const char* v = pugishim_attribute_value(a);
+        if (std::strcmp(n, "xmlns:xsi") == 0 && std::strcmp(v, "http://www.w3.org/2001/XMLSchema-instance") == 0) saw_xmlns_xsi = true;
+        if (std::strcmp(n, "xsi:schemaLocation") == 0 && std::strcmp(v, "TestNamespace basic_types.xsd") == 0) saw_schema_loc = true;
+    }
+    CHECK(saw_xmlns_xsi, "root xmlns:xsi attribute round-trips");
+    CHECK(saw_schema_loc, "root xsi:schemaLocation attribute round-trips");
+
+    void* rc1 = pugishim_first_child_element(rroot);
+    CHECK(rc1 != nullptr, "root has first child after roundtrip");
+    CHECK(std::strcmp(pugishim_node_name(rc1), "TestElement2") == 0, "first child tag round-trips");
+    CHECK(std::strcmp(pugishim_node_text(rc1), "99A9") == 0, "first child text round-trips");
+    const char* units_val = nullptr;
+    for (void* a = pugishim_first_attribute(rc1); a; a = pugishim_next_attribute(a)) {
+        if (std::strcmp(pugishim_attribute_name(a), "units") == 0) units_val = pugishim_attribute_value(a);
+    }
+    CHECK(units_val != nullptr && std::strcmp(units_val, "count") == 0, "first child attribute round-trips");
+
+    void* rc2 = pugishim_next_sibling_element(rc1);
+    CHECK(rc2 != nullptr, "root has second child after roundtrip");
+    CHECK(std::strcmp(pugishim_node_name(rc2), "TestElement1") == 0, "second child tag round-trips");
+    CHECK(pugishim_has_element_children(rc2) == 1, "second child has nested element child");
+    void* rgc = pugishim_first_child_element(rc2);
+    CHECK(rgc != nullptr, "second child's grandchild present");
+    CHECK(std::strcmp(pugishim_node_name(rgc), "Element_string") == 0, "grandchild tag round-trips");
+    CHECK(std::strcmp(pugishim_node_text(rgc), "aaaa") == 0, "grandchild text round-trips");
+
+    pugishim_free_doc(rdoc);
+    unlink(path);
 }
 
 int main(int argc, char** argv) {
@@ -114,6 +196,9 @@ int main(int argc, char** argv) {
     CHECK(entry_count == 20000, "large_synthetic.xml has 20000 entries");
 
     pugishim_free_doc(big_doc);
+
+    // --- write side: build, save, read back, compare --------------------
+    test_write_and_readback();
 
     if (failures == 0) {
         std::printf("\nALL CHECKS PASSED\n");
