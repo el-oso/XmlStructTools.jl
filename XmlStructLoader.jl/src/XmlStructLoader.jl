@@ -7,7 +7,6 @@ using Parsers
 using Memoization
 using AbstractTrees
 using AbstractTrees: parent, isroot
-using EzXML
 import XmlStructPugixml
 using AbstractXsdTypes
 

@@ -9,6 +9,7 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 TimeZones = "f269a46b-ccf7-5d73-abea-4c690281aa53"
 XML = "72c71f33-b9b6-44de-8c94-c961784809e2"
 XmlStructLoader = "1bf1c528-19f0-4e43-b24f-ad91d84ffbf7"
+XmlStructPugixml = "69c5dbe4-038b-4614-a603-8f259d1fd840"
 XsdToStruct = "3ae7ce5f-3138-4ab9-addd-ceedf56009da"
 
 [compat]
