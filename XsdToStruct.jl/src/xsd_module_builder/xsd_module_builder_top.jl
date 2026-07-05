@@ -140,12 +140,39 @@ function write_precompile_workload_part(xsd_module_builder::XSDStructModuleBuild
         "XmlStructLoader.load(__xsdtostruct_sample_path__, @__MODULE__; validate = false)",
         indent_level = 1,
     )
+    if xsd_module_builder.xsd_tree.root_field isa FieldData &&
+       is_root_lazy_capable(xsd_module_builder)
+        writeln(
+            xsd_module_builder, IOTop,
+            "__xsdtostruct_lazy_sample__ = XmlStructLoader.load(__xsdtostruct_sample_path__, @__MODULE__; validate = false, load_strategy = XmlStructLoader.ReadOnAccess())",
+            indent_level = 1,
+        )
+        writeln(
+            xsd_module_builder, IOTop,
+            "AbstractXsdTypes.print_tree(IOBuffer(), __xsdtostruct_lazy_sample__; print_all = true)",
+            indent_level = 1,
+        )
+    end
     writeln(xsd_module_builder, IOTop, "rm(__xsdtostruct_sample_path__; force = true)", indent_level = 1)
     writeln(xsd_module_builder, IOTop, "catch", indent_level = 1)
     writeln(xsd_module_builder, IOTop, "end", indent_level = 1)
     writeln(xsd_module_builder, IOTop, "end")
 
     return nothing
+end
+
+"""
+    is_root_lazy_capable(xsd_module_builder)::Bool
+
+Whether the schema's root type ended up lazy-capable (Task 3's `is_lazy_capable`) - if not (e.g. the
+root itself has choice fields), there is no `ReadOnAccess` path to warm for this schema and the
+workload only needs the existing `ReadAllData` warm-up.
+"""
+function is_root_lazy_capable(xsd_module_builder::XSDStructModuleBuilderType)::Bool
+    idx = findfirst(==(xsd_module_builder.xsd_tree.root_field.julia_type) ∘ name, xsd_module_builder.defined_nodes)
+    isnothing(idx) && return false
+    node = xsd_module_builder.defined_nodes[idx]
+    return node isa ComplexTreeNode && is_lazy_capable(node)
 end
 
 function write_meta_module_part(xsd_module_builder::XSDStructModuleBuilderType)::Nothing

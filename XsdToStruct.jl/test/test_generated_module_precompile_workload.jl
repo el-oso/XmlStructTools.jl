@@ -48,4 +48,13 @@ end
         generated_path = xsd_to_struct_module(xsd_path, outdir)
         @test occursin("PrecompileTools.@compile_workload", read(generated_path, String))
     end
+
+    @testset "basic_types — workload also warms the ReadOnAccess (lazy) path" begin
+        xsd_path = joinpath(@__DIR__, "test_data", "generic_data", "basic_types.xsd")
+        outdir = mktempdir()
+        generated_path = xsd_to_struct_module(xsd_path, outdir)
+        source = read(generated_path, String)
+
+        @test occursin("ReadOnAccess", source)
+    end
 end

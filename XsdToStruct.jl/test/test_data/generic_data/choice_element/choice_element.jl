@@ -53,6 +53,8 @@ PrecompileTools.@compile_workload begin
     __xsdtostruct_sample_path__ = tempname()
     write(__xsdtostruct_sample_path__, __XSDTOSTRUCT_SAMPLE_XML__)
     XmlStructLoader.load(__xsdtostruct_sample_path__, @__MODULE__; validate = false)
+    __xsdtostruct_lazy_sample__ = XmlStructLoader.load(__xsdtostruct_sample_path__, @__MODULE__; validate = false, load_strategy = XmlStructLoader.ReadOnAccess())
+    AbstractXsdTypes.print_tree(IOBuffer(), __xsdtostruct_lazy_sample__; print_all = true)
     rm(__xsdtostruct_sample_path__; force = true)
     catch
     end
