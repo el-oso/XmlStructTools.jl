@@ -272,8 +272,6 @@ named initializer function `_init_<field_name>` - `LazilyInitializedFields.jl`'s
 the result, so no manual "check uninit, call, cache" code is needed anywhere else.
 """
 function generate_lazy_field_string(field_data::AbstractFieldData)::String
-    full_field_type = qualified_type(field_data)
-
     full_field_type = lazy_field_full_type(field_data)
     return "@lazy $(field_data.name)::$(full_field_type) = _init_$(field_data.name)"
 end
