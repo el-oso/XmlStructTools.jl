@@ -46,10 +46,20 @@ end
 
 @testitem "LazyNode survives GC pressure between accesses (finalizer safety)" begin
     using XmlStructPugixml
+
+    # `handle` is local to this function and goes out of scope once it returns - the ONLY path
+    # back to the PugixmlDocumentHandle from the caller's side is through root.owner. This is what
+    # makes the test below meaningful: if LazyNode's GC.@preserve discipline (or the field
+    # reference itself) were broken, nothing in the calling scope keeps the document alive, and
+    # forcing GC after this returns would be free to finalize it before lazy_name/lazy_children run.
+    function _make_lazy_root(fixture::AbstractString)
+        doc_ptr = XmlStructPugixml.parse_file(fixture)
+        handle = XmlStructLoader.PugixmlDocumentHandle(doc_ptr)
+        return XmlStructLoader.LazyNode(XmlStructPugixml.root(doc_ptr), handle)
+    end
+
     fixture = joinpath(@__DIR__, "test_data", "generic_cases", "basic_types.xml")
-    doc_ptr = XmlStructPugixml.parse_file(fixture)
-    handle = XmlStructLoader.PugixmlDocumentHandle(doc_ptr)
-    root = XmlStructLoader.LazyNode(XmlStructPugixml.root(doc_ptr), handle)
+    root = _make_lazy_root(fixture)
 
     for _ in 1:5
         GC.gc(true)
@@ -61,5 +71,5 @@ end
         end
     end
 
-    close(handle)
+    close(root.owner)
 end
