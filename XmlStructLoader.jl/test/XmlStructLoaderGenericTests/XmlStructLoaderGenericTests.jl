@@ -1,4 +1,3 @@
-
 # input data
 if VERSION < v"1.7"
     generic_data_dir = joinpath(pkgdir(XmlStructLoader), "test", "test_data", "generic_cases")
@@ -11,5 +10,5 @@ generic_test_files = get_test_files(generic_data_dir)
 generate_modules(generic_data_dir)
 
 # run tests
-include("load_tests.jl")
-include("check_tests.jl")
+include("load_generic.jl")
+include("check_generic.jl")
