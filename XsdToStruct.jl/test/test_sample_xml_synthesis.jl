@@ -86,9 +86,17 @@
         # required fields: Element_string and Element_simple1 both have minOccurs="0"
         # (can_be_missing=true) and must be omitted; Element_double has no minOccurs at all
         # (can_be_missing=false, required) and must still appear with a dummy value.
-        @test !occursin("<Element_string>", sample_xml)
-        @test !occursin("<Element_simple1>", sample_xml)
-        @test occursin("<Element_double>0</Element_double>", sample_xml)
+        #
+        # Scope these checks to TestElement1's own block, not the whole document: TestComplexType2
+        # (TestElement2) also has a field literally named "Element_string" (default="aaa", no
+        # minOccurs - so can_be_missing=false, required, correctly emitted) - a whole-document
+        # occursin check would see that unrelated occurrence and give a false failure.
+        te1_start = first(findfirst("<TestElement1>", sample_xml))
+        te1_end = last(findfirst("</TestElement1>", sample_xml))
+        te1_block = sample_xml[te1_start:te1_end]
+        @test !occursin("<Element_string>", te1_block)
+        @test !occursin("<Element_simple1>", te1_block)
+        @test occursin("<Element_double>0</Element_double>", te1_block)
         # TestElement1 itself is a required field of documentType — still present
         @test occursin("<TestElement1>", sample_xml)
     end

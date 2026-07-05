@@ -63,7 +63,6 @@ sample_xml_for_field(::GroupFieldData, ::XSDStructModuleBuilderType)::Nothing = 
 
 function sample_xml_for_field(field::FieldData, xsd_module_builder::XSDStructModuleBuilderType)::Union{Nothing,String}
     field.can_be_missing && return nothing
-    !isnothing(field.base_default_value) && return nothing
     inner = sample_xml_for_type(qualified_type(field), field.julia_type, xsd_module_builder)
     isnothing(inner) && return nothing
     return "<$(field.name)>$inner</$(field.name)>"
