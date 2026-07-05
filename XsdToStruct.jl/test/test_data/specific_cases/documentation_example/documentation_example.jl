@@ -7,6 +7,10 @@ All generated types are exported by this module and some meta data is included i
 In order to use this module the following dependencies need to be installed:
     AbstractXsdTypes
     Reexport
+    PrecompileTools
+    XmlStructLoader
+
+PrecompileTools and XmlStructLoader are required at load time (not just for calling load() yourself) - this module runs a load() warm-up during precompilation.
 
 This module can be used/import as follows:
 
@@ -37,6 +41,21 @@ module __meta
     xsd_filename = "documentation_example.xsd"
     XsdToStruct_version = "0.1.0"
 
+end
+
+import PrecompileTools
+import XmlStructLoader
+
+const __XSDTOSTRUCT_SAMPLE_XML__ = """<houseDescription><address><street>x</street><city>x</city><state>x</state><postalCode>0</postalCode></address><owner><name>x</name><address><street>x</street><city>x</city><state>x</state><postalCode>0</postalCode></address></owner><houseDescription><overallProperties><totalArea>0</totalArea><livableArea>0</livableArea></overallProperties><room><name>x</name><area>0</area></room></houseDescription></houseDescription>"""
+
+PrecompileTools.@compile_workload begin
+    try
+    __xsdtostruct_sample_path__ = tempname()
+    write(__xsdtostruct_sample_path__, __XSDTOSTRUCT_SAMPLE_XML__)
+    XmlStructLoader.load(__xsdtostruct_sample_path__, @__MODULE__; validate = false)
+    rm(__xsdtostruct_sample_path__; force = true)
+    catch
+    end
 end
 
 end

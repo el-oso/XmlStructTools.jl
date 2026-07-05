@@ -5,6 +5,7 @@ include("xsd_module_builder_common.jl")
 include("xsd_module_builder_top.jl")
 include("xsd_module_builder_struct.jl")
 include("xsd_module_builder_checks.jl")
+include("xsd_module_builder_precompile.jl")
 
 # TODO: potential idea for running without writing to new file: use io = IOBuffer() and afterwards
 # module_string = String(take!(io))) and then eval(Meta.parse(module_string))
@@ -32,8 +33,8 @@ function write_module(
                 io_struct = io_struct,
                 xsd_filename = xsd_filename,
             )
-            write_top_module_to_io(xsd_module_builder)
-            return write_struct_module_to_io(xsd_module_builder)
+            write_struct_module_to_io(xsd_module_builder)
+            return write_top_module_to_io(xsd_module_builder)
         end
     end
 

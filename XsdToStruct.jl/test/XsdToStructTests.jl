@@ -5,6 +5,7 @@ import Test
 using Logging
 using XsdToStruct
 using TimeZones
+using XmlStructLoader
 
 # test input data
 
@@ -25,5 +26,7 @@ include("test_xsd_reader.jl")
 include("test_xsd_module_generator.jl")
 include("test_generated_module.jl")
 include("test_real_world_schemas.jl")
+include("test_sample_xml_synthesis.jl")
+include("test_generated_module_precompile_workload.jl")
 
 end

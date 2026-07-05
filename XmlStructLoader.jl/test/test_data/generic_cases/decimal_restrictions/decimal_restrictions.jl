@@ -7,6 +7,10 @@ All generated types are exported by this module and some meta data is included i
 In order to use this module the following dependencies need to be installed:
     AbstractXsdTypes
     Reexport
+    PrecompileTools
+    XmlStructLoader
+
+PrecompileTools and XmlStructLoader are required at load time (not just for calling load() yourself) - this module runs a load() warm-up during precompilation.
 
 This module can be used/import as follows:
 
@@ -28,6 +32,18 @@ using Reexport
 
 include("decimal_restrictions_struct.jl")
 @reexport using .TestDecimalRestrictions_struct
+
+import PrecompileTools
+import XmlStructLoader
+
+const __XSDTOSTRUCT_SAMPLE_XML__ = """<document><TestElement1>0</TestElement1><TestElement2>0</TestElement2><TestElement3>0</TestElement3><TestElement4>0</TestElement4><TestElement5>0</TestElement5><TestElement6>0</TestElement6></document>"""
+
+PrecompileTools.@compile_workload begin
+    try
+        XmlStructLoader.load(IOBuffer(__XSDTOSTRUCT_SAMPLE_XML__), @__MODULE__; validate = false)
+    catch
+    end
+end
 
 module __meta
 
