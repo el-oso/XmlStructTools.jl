@@ -1,6 +1,8 @@
 module TestOutOfOrder_struct
 
 import AbstractXsdTypes
+using LazilyInitializedFields
+import XmlStructLoader
 
 """
 An example of an xsd type which used by another type that is defined before this one is defined.
@@ -22,14 +24,36 @@ end
 
 export TestSimpleType1
 
-"""
-An example of an xsd type which uses another type that is defined after this one.
-"""
-Base.@kwdef struct TestComplexType1 <: AbstractXsdTypes.AbstractXSDComplex
-    Element_order::TestSimpleType1
-    __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
-    __validated::Bool = true
+@lazy struct TestComplexType1 <: AbstractXsdTypes.AbstractXSDComplex
+    _node::Union{Nothing, XmlStructLoader.LazyNode}
+    @lazy Element_order::TestSimpleType1 = _init_Element_order
+    __xml_attributes::Union{Nothing, Dict{String, String}}
+    __validated::Bool
 end
+
+function TestComplexType1(node::XmlStructLoader.LazyNode)
+    attribs = XmlStructLoader.lazy_attributes_dict(node)
+    return TestComplexType1(node, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+end
+
+function TestComplexType1(__lazy_arg_1, __xml_attributes = nothing, __validated::Bool = true)
+    return TestComplexType1(nothing, convert(TestSimpleType1, __lazy_arg_1), __xml_attributes, __validated)
+end
+
+function TestComplexType1(; Element_order, __xml_attributes = nothing, __validated::Bool = true)
+    return TestComplexType1(Element_order, __xml_attributes, __validated)
+end
+
+function _init_Element_order(o::TestComplexType1)
+    child = XmlStructLoader.lazy_child_with_name(o._node, "Element_order", false)
+    isnothing(child) && return nothing
+    owner = child.owner
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestSimpleType1, nothing), @__MODULE__, false)
+end
+
+@doc """
+An example of an xsd type which uses another type that is defined after this one.
+""" TestComplexType1
 
 export TestComplexType1
 
@@ -53,11 +77,38 @@ end
 
 export TestSimpleType2
 
-Base.@kwdef struct documentType <: AbstractXsdTypes.AbstractXSDComplex
-    TestElement1::TestComplexType1
-    TestElement2::TestSimpleType2
-    __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
-    __validated::Bool = true
+@lazy struct documentType <: AbstractXsdTypes.AbstractXSDComplex
+    _node::Union{Nothing, XmlStructLoader.LazyNode}
+    @lazy TestElement1::TestComplexType1 = _init_TestElement1
+    @lazy TestElement2::TestSimpleType2 = _init_TestElement2
+    __xml_attributes::Union{Nothing, Dict{String, String}}
+    __validated::Bool
+end
+
+function documentType(node::XmlStructLoader.LazyNode)
+    attribs = XmlStructLoader.lazy_attributes_dict(node)
+    return documentType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+end
+
+function documentType(__lazy_arg_1, __lazy_arg_2, __xml_attributes = nothing, __validated::Bool = true)
+    return documentType(nothing, convert(TestComplexType1, __lazy_arg_1), convert(TestSimpleType2, __lazy_arg_2), __xml_attributes, __validated)
+end
+
+function documentType(; TestElement1, TestElement2, __xml_attributes = nothing, __validated::Bool = true)
+    return documentType(TestElement1, TestElement2, __xml_attributes, __validated)
+end
+
+function _init_TestElement1(o::documentType)
+    child = XmlStructLoader.lazy_child_with_name(o._node, "TestElement1", false)
+    isnothing(child) && return nothing
+    return TestComplexType1(child)
+end
+
+function _init_TestElement2(o::documentType)
+    child = XmlStructLoader.lazy_child_with_name(o._node, "TestElement2", false)
+    isnothing(child) && return nothing
+    owner = child.owner
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestSimpleType2, nothing), @__MODULE__, false)
 end
 
 export documentType

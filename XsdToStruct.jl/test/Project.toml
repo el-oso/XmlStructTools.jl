@@ -1,9 +1,11 @@
 [deps]
 AbstractXsdTypes = "894546dd-dc3f-42e8-9b69-a7785ccf72be"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+LazilyInitializedFields = "0e77f7df-68c5-4e49-93ce-4cd80f5598bf"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 ReTest = "e0db7c4e-2690-44b9-bad6-7687da720f89"
+ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TimeZones = "f269a46b-ccf7-5d73-abea-4c690281aa53"

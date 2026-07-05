@@ -106,17 +106,39 @@ is_defined(type_name::AbstractString, xsd_module_builder::XSDStructModuleBuilder
     (type_name in defined_node_names(xsd_module_builder))
 )
 
-function struct_line_string(struct_name::AbstractString; kwdef::Bool = true)::String
+function struct_line_string(struct_name::AbstractString; kwdef::Bool = true, lazy::Bool = false)::String
     struct_line = "struct $(struct_name)"
-    if kwdef
+    if lazy
+        struct_line = "@lazy " * struct_line
+    elseif kwdef
         struct_line = "Base.@kwdef " * struct_line
     end
     return struct_line
 end
-function struct_line_string(struct_name::AbstractString, supertype; kwdef::Bool = true)::String
+function struct_line_string(struct_name::AbstractString, supertype; kwdef::Bool = true, lazy::Bool = false)::String
     struct_line = "struct $(struct_name) <: $(supertype)"
-    if kwdef
+    if lazy
+        struct_line = "@lazy " * struct_line
+    elseif kwdef
         struct_line = "Base.@kwdef " * struct_line
     end
     return struct_line
 end
+
+"""
+    is_lazy_capable(node::ComplexTreeNode)::Bool
+
+True for complex types that get lazy-loading codegen: no `xs:choice` fields, and at least one real
+(non-`GroupFieldData`) data field. Choice-bearing types keep their existing eager-only
+`propertynames`/`getproperty` overrides (see `write_node_with_choice`), which conflict with `@lazy`'s
+own `propertynames` mechanism - confirmed against the reference implementation and safe for the real
+ISO 20022 target schema (no root-path choice gating). A node with zero data fields (e.g. an inline
+`<complexType/>` with no content) is excluded too: `LazilyInitializedFields.@lazy` requires at least
+one `@lazy`-tagged field ("expected a @lazy field inside the struct") and there is nothing to gain
+from laziness on a type with no fields anyway - `write_node_no_choice` falls back to the old plain
+struct for such nodes, so this must agree for `is_lazy_capable_field_type`'s recursion check to stay
+correct.
+"""
+is_lazy_capable(node::ComplexTreeNode)::Bool =
+    isempty(get_all_fields_of_type(node, ChoiceFieldData)) &&
+    any(!(field isa GroupFieldData) for field in get_all_fields(node))

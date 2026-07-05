@@ -1,6 +1,8 @@
 module TestDecimalRestrictions_struct
 
 import AbstractXsdTypes
+using LazilyInitializedFields
+import XmlStructLoader
 
 """
 An example of a totalDigits restricted decimal type.
@@ -160,15 +162,71 @@ end
 
 export TestSimpleType6
 
-Base.@kwdef struct documentType <: AbstractXsdTypes.AbstractXSDComplex
-    TestElement1::TestSimpleType1
-    TestElement2::TestSimpleType2
-    TestElement3::TestSimpleType3
-    TestElement4::TestSimpleType4
-    TestElement5::TestSimpleType5
-    TestElement6::TestSimpleType6
-    __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
-    __validated::Bool = true
+@lazy struct documentType <: AbstractXsdTypes.AbstractXSDComplex
+    _node::Union{Nothing, XmlStructLoader.LazyNode}
+    @lazy TestElement1::TestSimpleType1 = _init_TestElement1
+    @lazy TestElement2::TestSimpleType2 = _init_TestElement2
+    @lazy TestElement3::TestSimpleType3 = _init_TestElement3
+    @lazy TestElement4::TestSimpleType4 = _init_TestElement4
+    @lazy TestElement5::TestSimpleType5 = _init_TestElement5
+    @lazy TestElement6::TestSimpleType6 = _init_TestElement6
+    __xml_attributes::Union{Nothing, Dict{String, String}}
+    __validated::Bool
+end
+
+function documentType(node::XmlStructLoader.LazyNode)
+    attribs = XmlStructLoader.lazy_attributes_dict(node)
+    return documentType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+end
+
+function documentType(__lazy_arg_1, __lazy_arg_2, __lazy_arg_3, __lazy_arg_4, __lazy_arg_5, __lazy_arg_6, __xml_attributes = nothing, __validated::Bool = true)
+    return documentType(nothing, convert(TestSimpleType1, __lazy_arg_1), convert(TestSimpleType2, __lazy_arg_2), convert(TestSimpleType3, __lazy_arg_3), convert(TestSimpleType4, __lazy_arg_4), convert(TestSimpleType5, __lazy_arg_5), convert(TestSimpleType6, __lazy_arg_6), __xml_attributes, __validated)
+end
+
+function documentType(; TestElement1, TestElement2, TestElement3, TestElement4, TestElement5, TestElement6, __xml_attributes = nothing, __validated::Bool = true)
+    return documentType(TestElement1, TestElement2, TestElement3, TestElement4, TestElement5, TestElement6, __xml_attributes, __validated)
+end
+
+function _init_TestElement1(o::documentType)
+    child = XmlStructLoader.lazy_child_with_name(o._node, "TestElement1", false)
+    isnothing(child) && return nothing
+    owner = child.owner
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestSimpleType1, nothing), @__MODULE__, false)
+end
+
+function _init_TestElement2(o::documentType)
+    child = XmlStructLoader.lazy_child_with_name(o._node, "TestElement2", false)
+    isnothing(child) && return nothing
+    owner = child.owner
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestSimpleType2, nothing), @__MODULE__, false)
+end
+
+function _init_TestElement3(o::documentType)
+    child = XmlStructLoader.lazy_child_with_name(o._node, "TestElement3", false)
+    isnothing(child) && return nothing
+    owner = child.owner
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestSimpleType3, nothing), @__MODULE__, false)
+end
+
+function _init_TestElement4(o::documentType)
+    child = XmlStructLoader.lazy_child_with_name(o._node, "TestElement4", false)
+    isnothing(child) && return nothing
+    owner = child.owner
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestSimpleType4, nothing), @__MODULE__, false)
+end
+
+function _init_TestElement5(o::documentType)
+    child = XmlStructLoader.lazy_child_with_name(o._node, "TestElement5", false)
+    isnothing(child) && return nothing
+    owner = child.owner
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestSimpleType5, nothing), @__MODULE__, false)
+end
+
+function _init_TestElement6(o::documentType)
+    child = XmlStructLoader.lazy_child_with_name(o._node, "TestElement6", false)
+    isnothing(child) && return nothing
+    owner = child.owner
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestSimpleType6, nothing), @__MODULE__, false)
 end
 
 export documentType

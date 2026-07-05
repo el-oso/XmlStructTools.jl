@@ -1,11 +1,15 @@
 module TestSimpleUnion_struct
 
 import AbstractXsdTypes
+using LazilyInitializedFields
+import XmlStructLoader
 
 module TestDoubleRestrictedDoubleTypes
 
 
     import AbstractXsdTypes
+    using LazilyInitializedFields
+    import XmlStructLoader
 
     using ..TestSimpleUnion_struct
 
@@ -70,6 +74,8 @@ module UnionTypeTypes
 
 
     import AbstractXsdTypes
+    using LazilyInitializedFields
+    import XmlStructLoader
 
     using ..TestSimpleUnion_struct
 
@@ -121,11 +127,39 @@ AbstractXsdTypes.union_types(::Type{<:UnionType}) = (UnionTypeTypes.type_1, Unio
 
 export UnionType
 
-Base.@kwdef struct documentType <: AbstractXsdTypes.AbstractXSDComplex
-    TestDoubleRestrictedDouble::TestDoubleRestrictedDouble
-    UnionType::UnionType
-    __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
-    __validated::Bool = true
+@lazy struct documentType <: AbstractXsdTypes.AbstractXSDComplex
+    _node::Union{Nothing, XmlStructLoader.LazyNode}
+    @lazy TestDoubleRestrictedDouble::TestDoubleRestrictedDouble = _init_TestDoubleRestrictedDouble
+    @lazy UnionType::UnionType = _init_UnionType
+    __xml_attributes::Union{Nothing, Dict{String, String}}
+    __validated::Bool
+end
+
+function documentType(node::XmlStructLoader.LazyNode)
+    attribs = XmlStructLoader.lazy_attributes_dict(node)
+    return documentType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+end
+
+function documentType(__lazy_arg_1, __lazy_arg_2, __xml_attributes = nothing, __validated::Bool = true)
+    return documentType(nothing, convert(TestDoubleRestrictedDouble, __lazy_arg_1), convert(UnionType, __lazy_arg_2), __xml_attributes, __validated)
+end
+
+function documentType(; TestDoubleRestrictedDouble, UnionType, __xml_attributes = nothing, __validated::Bool = true)
+    return documentType(TestDoubleRestrictedDouble, UnionType, __xml_attributes, __validated)
+end
+
+function _init_TestDoubleRestrictedDouble(o::documentType)
+    child = XmlStructLoader.lazy_child_with_name(o._node, "TestDoubleRestrictedDouble", false)
+    isnothing(child) && return nothing
+    owner = child.owner
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestDoubleRestrictedDouble, nothing), @__MODULE__, false)
+end
+
+function _init_UnionType(o::documentType)
+    child = XmlStructLoader.lazy_child_with_name(o._node, "UnionType", false)
+    isnothing(child) && return nothing
+    owner = child.owner
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, UnionType, nothing), @__MODULE__, false)
 end
 
 export documentType

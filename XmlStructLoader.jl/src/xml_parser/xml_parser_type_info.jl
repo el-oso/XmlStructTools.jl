@@ -29,6 +29,21 @@ function type_in_module(@nospecialize(T::Type), module_ref::Module)::Bool
 end
 
 """
+    _is_lazily_initialized_marker(t)::Bool
+
+True for `LazilyInitializedFields.Uninitialized` - checked by name rather than importing
+`LazilyInitializedFields` (not a dependency of this package; only generated structs and
+`AbstractXsdTypes.jl` depend on it). A `@lazy`-tagged struct field's *declared* type is always
+`Union{Uninitialized, T}`, not the bare `T` - see `XsdToStruct.jl`'s `generate_lazy_field_string`.
+The eager path below reflects on field types expecting exactly one non-`Nothing` union member (the
+optional-field convention); an unstripped `Uninitialized` breaks that assumption, so it must be
+filtered out alongside `Nothing`.
+"""
+function _is_lazily_initialized_marker(@nospecialize(t))::Bool
+    return t isa DataType && nameof(t) === :Uninitialized && nameof(parentmodule(t)) === :LazilyInitializedFields
+end
+
+"""
 	get_field_type(::Type{T}, field_specification::Union{Symbol, Int}) where T <: Any
 
 For a given type T return the type of the field determined by either the index or symbol field_specification. If the
@@ -40,7 +55,7 @@ function get_base_field_type(@nospecialize(T::Type), field_index::Int)::DataType
 
     if typeof(field_type) == Union
         # extract type from optional
-        field_type = first(filter(a -> a != Nothing, Base.uniontypes(field_type)))
+        field_type = first(filter(a -> a != Nothing && !_is_lazily_initialized_marker(a), Base.uniontypes(field_type)))
     end
 
     return field_type
@@ -49,9 +64,9 @@ end
 # Deliberate open-tail dict, not a candidate for compile-time (dispatch/const) ownership: T ranges
 # over every struct type any user's schema might generate, at the user's own runtime - an
 # unbounded, not-known-until-`include()`-time key set, not a closed type domain.
-const field_type_cache = Dict{Tuple{DataType, Symbol}, DataType}()
+const field_type_cache = Dict{Tuple{DataType,Symbol},DataType}()
 
-get_type_from_symbol(type_symbol::Tuple{DataType, Symbol}) = get(field_type_cache, type_symbol, Nothing)
+get_type_from_symbol(type_symbol::Tuple{DataType,Symbol}) = get(field_type_cache, type_symbol, Nothing)
 
 function get_base_field_type(@nospecialize(T::Type), field_symbol::Symbol)
     field_type = get_type_from_symbol((T, field_symbol))
@@ -75,7 +90,8 @@ function get_base_field_type(@nospecialize(T::Type), field_symbol::Symbol)
 
         if typeof(field_type) == Union
             # extract type from optional
-            field_type = first(filter(a -> a !== Nothing, Base.uniontypes(field_type)))
+            field_type =
+                first(filter(a -> a !== Nothing && !_is_lazily_initialized_marker(a), Base.uniontypes(field_type)))
         end
 
         field_type_cache[(T, field_symbol)] = field_type
@@ -86,7 +102,7 @@ end
 
 # Same as field_type_cache above: tag names are open across all possible schemas, not a closed
 # domain - a deliberate dict fallback, not a gap to close with dispatch.
-const tag_symbol_cache = Dict{String, Symbol}()
+const tag_symbol_cache = Dict{String,Symbol}()
 
 """
 	tag_symbol(tag_name::AbstractString)::Symbol
