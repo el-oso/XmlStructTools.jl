@@ -7,6 +7,8 @@ All generated types are exported by this module and some meta data is included i
 In order to use this module the following dependencies need to be installed:
     AbstractXsdTypes
     Reexport
+    PrecompileTools
+    XmlStructLoader
     Dates
     TimeZones
 
@@ -30,6 +32,18 @@ using Reexport
 
 include("type_in_type_struct.jl")
 @reexport using .TestTypeInType_struct
+
+import PrecompileTools
+import XmlStructLoader
+
+const __XSDTOSTRUCT_SAMPLE_XML__ = """<document><TestElement1><A><Element_string>x</Element_string><Element_double>0</Element_double><Element_boolean>false</Element_boolean><Element_dateTime>2000-01-01T00:00:00</Element_dateTime></A><B>x</B><C><Element_string>x</Element_string><Element_double>0</Element_double><Element_boolean>false</Element_boolean><Element_dateTime>2000-01-01T00:00:00</Element_dateTime></C></TestElement1><TestElement2><A>x</A><B>x</B></TestElement2><TestElement3><A>x</A><S1>x</S1><B>x</B><S2>x</S2></TestElement3></document>"""
+
+PrecompileTools.@compile_workload begin
+    try
+        XmlStructLoader.load(IOBuffer(__XSDTOSTRUCT_SAMPLE_XML__), @__MODULE__; validate = false)
+    catch
+    end
+end
 
 module __meta
 

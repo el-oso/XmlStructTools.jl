@@ -33,8 +33,8 @@ function write_module(
                 io_struct = io_struct,
                 xsd_filename = xsd_filename,
             )
-            write_top_module_to_io(xsd_module_builder)
-            return write_struct_module_to_io(xsd_module_builder)
+            write_struct_module_to_io(xsd_module_builder)
+            return write_top_module_to_io(xsd_module_builder)
         end
     end
 
