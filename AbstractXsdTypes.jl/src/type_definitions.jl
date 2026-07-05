@@ -175,6 +175,19 @@ function public_propertynames(::Type{T}) where {T<:AbstractXSDComplex}
 end
 
 """
+    Base.propertynames(x::T) where {T<:AbstractXSDComplex}
+
+Excludes the internal `_node` field (present only on lazy-loading-capable structs, see
+XmlStructLoader.jl's `ReadOnAccess` load strategy) from the properties users see via `propertynames`,
+`show`/`print_tree`, and `XmlStructWriter.jl`'s serialization (which both call plain `propertynames`,
+not `public_propertynames` - this single override is the one point of control for all three).
+Every other existing field (`__xml_attributes`, `__validated`) is unaffected.
+"""
+function Base.propertynames(x::T) where {T<:AbstractXSDComplex}
+    return hasfield(T, :_node) ? filter(!=(:_node), fieldnames(T)) : fieldnames(T)
+end
+
+"""
     AbstractXsdTypes.AbstractXSDUnion
 
 Abstract type used for [XSD Union types](https://xsdata.readthedocs.io/en/v21.3/defxmlschema/chapter10.html).

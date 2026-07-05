@@ -12,10 +12,10 @@ else
     const RNG = Xoshiro(20231002)
 end
 
-include("type_tests.jl")
-include(joinpath("restriction_tests", "restriction_tests.jl"))
-include(joinpath("conversion_tests", "conversion_tests.jl"))
-include(joinpath("mathematics_functions_tests", "mathematics_functions_tests.jl"))
+include("type_testset.jl")
+include(joinpath("restriction_tests", "restriction_testset.jl"))
+include(joinpath("conversion_tests", "conversion_testset.jl"))
+include(joinpath("mathematics_functions_tests", "mathematics_functions_testset.jl"))
 
 @testset "doctest" begin
     Documenter.doctest(AbstractXsdTypes)

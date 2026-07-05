@@ -32,14 +32,18 @@ Prints the AbstractXSDComplex as a tree.
 function print_tree(io::IO, x::AbstractXSDComplex; print_all::Bool = false, indent_string::AbstractString = "")::Nothing
     properties = propertynames(x)
     n_properties = length(properties)
+    T = typeof(x)
+    has_lazy_fields = hasmethod(LazilyInitializedFields.islazyfield, Tuple{Type{T},Symbol})
 
     prefix_string = indent_string * branch_string
 
     for (i, property) in enumerate(properties)
-        if i == n_properties
-            new_indent_string = indent_string * empty_indent_string
-        else
-            new_indent_string = indent_string * base_indent_string
+        new_indent_string = i == n_properties ? indent_string * empty_indent_string : indent_string * base_indent_string
+
+        if has_lazy_fields && LazilyInitializedFields.islazyfield(T, property) &&
+           !LazilyInitializedFields.isinit(x, property)
+            println(io, prefix_string * "$property: uninit")
+            continue
         end
 
         property_value = getproperty(x, property)
