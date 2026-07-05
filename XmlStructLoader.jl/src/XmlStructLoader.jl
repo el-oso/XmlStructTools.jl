@@ -14,7 +14,8 @@ include(joinpath("xml_parser", "xml_parser.jl"))
 include(joinpath("xml_parser", "lazy_xml_node.jl"))
 include("xml_module_utilities.jl")
 
-export load, import_module_from_xml, use_module_from_xml
+export load, import_module_from_xml, use_module_from_xml,
+    LoadStrategy, ReadAllData, ReadOnAccess, DEFAULT_LOAD_STRATEGY
 
 """
 	load(xml_path::AbstractString, module_ref::Module; validate::Bool=true)
@@ -46,16 +47,69 @@ julia> using .XsdModule
 julia> load(joinpath("path", "to", "xml", "file.xml"), XsdModule, validate=false)
 ```
 """
-function load(xml_path::AbstractString, module_ref::Module; validate::Bool = true)
+
+abstract type LoadStrategy end
+
+"""
+    struct ReadAllData <: LoadStrategy end
+
+All data is read from the XML file when it is opened. Slower to return from `load()` on large
+documents, but every field access afterward is a plain, already-computed field read.
+"""
+struct ReadAllData <: LoadStrategy end
+
+"""
+    struct ReadOnAccess <: LoadStrategy end
+
+`load()` returns almost immediately; each field's value is parsed from the underlying XML the
+first time it is accessed, then cached. Only complex types generated from a choice-free XSD
+complex type support this - see the module docstring. Not compatible with `validate=true` (XSD
+restriction validation requires the parsed value, which would force materializing every field
+anyway - combining the two raises `ArgumentError`).
+"""
+struct ReadOnAccess <: LoadStrategy end
+
+"""
+    const DEFAULT_LOAD_STRATEGY = ReadAllData
+
+Used when `load_strategy` is not specified, for full backward compatibility.
+"""
+const DEFAULT_LOAD_STRATEGY = ReadAllData
+
+function load(
+        xml_path::AbstractString, module_ref::Module;
+        validate::Bool = true, load_strategy::LoadStrategy = DEFAULT_LOAD_STRATEGY(),
+    )
     local loaded_xml
     open(xml_path) do xml_io
-        return loaded_xml = load(xml_io, module_ref, validate = validate)
+        return loaded_xml = load(xml_io, module_ref; validate = validate, load_strategy = load_strategy)
     end
     return loaded_xml
 end
 
-load(xml_io::IO, module_ref::Module; validate::Bool = true) =
+function load(
+        xml_io::IO, module_ref::Module;
+        validate::Bool = true, load_strategy::LoadStrategy = DEFAULT_LOAD_STRATEGY(),
+    )
+    return load(xml_io, module_ref, load_strategy; validate = validate)
+end
+
+load(xml_io::IO, module_ref::Module, ::ReadAllData; validate::Bool = true) =
     Base.@invokelatest construct_xml_object(xml_io, module_ref, validate = validate)
+
+function load(xml_io::IO, module_ref::Module, ::ReadOnAccess; validate::Bool = true)
+    validate && throw(ArgumentError(
+        "load_strategy=ReadOnAccess() is not compatible with validate=true: XSD restriction " *
+        "validation requires the parsed field value, which would force materializing every " *
+        "field anyway, defeating the point of ReadOnAccess. Pass validate=false explicitly.",
+    ))
+    doc_ptr = XmlStructPugixml.parse_buffer(read(xml_io))
+    doc_ptr == C_NULL && error("pugixml failed to parse XML from IO")
+    handle = PugixmlDocumentHandle(doc_ptr)  # registered immediately, before anything else can throw
+    root_node = LazyNode(XmlStructPugixml.root(doc_ptr), handle)
+    root_type = Base.@invokelatest module_ref.__meta.root_type
+    return Base.@invokelatest root_type(root_node)
+end
 
 """
 	load(xml_path::AbstractString, module_path::AbstractString; validate::Bool=true)
@@ -71,18 +125,23 @@ julia> using XmlStructLoader
 julia> load(joinpath("path", "to", "xml", "file.xml"), joinpath("path", "to", "xsd", "module.jl"))
 ```
 """
-function load(xml_path::AbstractString, module_path::AbstractString; validate::Bool = true)
+function load(
+        xml_path::AbstractString, module_path::AbstractString;
+        validate::Bool = true, load_strategy::LoadStrategy = DEFAULT_LOAD_STRATEGY(),
+    )
     local loaded_xml
     open(xml_path) do xml_io
-        return loaded_xml = load(xml_io, module_path, validate = validate)
+        return loaded_xml = load(xml_io, module_path; validate = validate, load_strategy = load_strategy)
     end
     return loaded_xml
 end
 
-function load(xml_io::IO, module_path::AbstractString; validate::Bool = true)
+function load(
+        xml_io::IO, module_path::AbstractString;
+        validate::Bool = true, load_strategy::LoadStrategy = DEFAULT_LOAD_STRATEGY(),
+    )
     module_ref = import_module_from_xml(xml_io, module_path)
-    loaded_xml = Base.@invokelatest construct_xml_object(xml_io, module_ref, validate = validate)
-    return loaded_xml
+    return load(xml_io, module_ref; validate = validate, load_strategy = load_strategy)
 end
 
 """
