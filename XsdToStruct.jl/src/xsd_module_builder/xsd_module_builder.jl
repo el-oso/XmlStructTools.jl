@@ -5,6 +5,7 @@ include("xsd_module_builder_common.jl")
 include("xsd_module_builder_top.jl")
 include("xsd_module_builder_struct.jl")
 include("xsd_module_builder_checks.jl")
+include("xsd_module_builder_precompile.jl")
 
 # TODO: potential idea for running without writing to new file: use io = IOBuffer() and afterwards
 # module_string = String(take!(io))) and then eval(Meta.parse(module_string))
