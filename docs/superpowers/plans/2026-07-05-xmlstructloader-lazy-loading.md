@@ -117,14 +117,25 @@ ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
 ```
 (Same UUID as already used in `XmlStructPugixml.jl/test/Project.toml` — verify with `Pkg.add("ReTestItems")` from `XmlStructLoader.jl/test`, never hand-write UUIDs.)
 
-- [ ] **Step 4: Wire the new test file into `runtests.jl` alongside the existing runner**
+- [ ] **Step 4: Wire ReTestItems into `runtests.jl` alongside the existing runner**
 
-Read the current `XmlStructLoader.jl/test/runtests.jl` first (it currently calls `XmlStructLoaderTests.runtests()`). Add, after that call:
+**Correction from the plan's original draft, confirmed against `ReTestItems.jl`'s own README
+(`~/.julia/packages/ReTestItems/*/README.md`) before writing this:** `ReTestItems.runtests`'s
+`name` keyword filters by each `@testitem`'s own title string, not by file name - passing a
+file-name regex there would silently match zero test-items, so no new test would ever actually
+run under it. The correct, documented pattern needs no per-file scoping at all: ReTestItems scans
+the whole directory tree for every file named `*_tests.jl`/`*_test.jl` and runs everything it
+finds, with no explicit registration needed per file. This one invocation, added now, is the only
+`runtests.jl` change this entire plan needs for `XmlStructLoader.jl` - every later task in this
+package that adds another `*_tests.jl` file is picked up automatically, and none of them touch
+`runtests.jl` again.
+
+Read the current `XmlStructLoader.jl/test/runtests.jl` first (it currently calls
+`XmlStructLoaderTests.runtests()`). Add, after that call:
 ```julia
 using ReTestItems
-ReTestItems.runtests(@__DIR__; testitem_timeout = 300, name = r"lazy_xml_node_tests\.jl$")
+ReTestItems.runtests(XmlStructLoader; testitem_timeout = 600)
 ```
-(The `name` regex scopes ReTestItems to just this new file for now — later tasks add more `@testitem` files and each gets its own scoped invocation appended, so the existing classic suite and the new items never collide.)
 
 - [ ] **Step 5: Implement `PugixmlDocumentHandle` and `LazyNode`**
 
@@ -365,12 +376,13 @@ ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
 LazilyInitializedFields = "0e77f7df-68c5-4e49-93ce-4cd80f5598bf"
 ```
 
-- [ ] **Step 4: Wire the new test file into `runtests.jl`**
+- [ ] **Step 4: Wire ReTestItems into `runtests.jl`**
 
-Same pattern as Task 1 Step 4, appended to `AbstractXsdTypes.jl/test/runtests.jl`:
+Same correction as Task 1 Step 4 (`name` filters test-item titles, not file names - no per-file
+scoping needed or wanted). Appended to `AbstractXsdTypes.jl/test/runtests.jl`, once:
 ```julia
 using ReTestItems
-ReTestItems.runtests(@__DIR__; testitem_timeout = 300, name = r"lazy_show_tests\.jl$")
+ReTestItems.runtests(AbstractXsdTypes; testitem_timeout = 300)
 ```
 
 - [ ] **Step 5: Fix `Base.propertynames`**
@@ -497,7 +509,12 @@ end
     xsd_path = joinpath(@__DIR__, "test_data", "generic_data", "basic_types.xsd")
     outdir = mktempdir()
     generated_path = xsd_to_struct_module(xsd_path, outdir)
-    module_name = _extract_module_name(read(generated_path, String))
+
+    module_name = nothing
+    for line in split(read(generated_path, String), '\n')
+        m = match(r"^module\s+(\w+)", line)
+        isnothing(m) || (module_name = Symbol(m[1]); break)
+    end
 
     Base.include(Main, generated_path)
     generated_module = Base.invokelatest(getproperty, Main, module_name)
@@ -516,7 +533,12 @@ end
 end
 ```
 
-(`_extract_module_name` already exists in this test suite from the precompile-workload feature - `XsdToStruct.jl/test/test_generated_module_precompile_workload.jl`. If ReTestItems isolates each `@testitem` into its own module scope such that this helper isn't visible, copy the same 6-line helper into this file directly rather than relying on cross-file sharing.)
+(The module-name extraction is inlined directly in the one `@testitem` that needs it, rather than
+reused from `_extract_module_name` in `test_generated_module_precompile_workload.jl` - confirmed
+against `ReTestItems.jl`'s own README that each `@testitem` runs as top-level code in its own fresh
+module and cannot see plain top-level functions defined in a different file, or even elsewhere in
+the same file outside a `@testsetup module`. That older helper lives in a classic `@testset`-based
+file, unaffected by this plan's constraint of not migrating existing test files.)
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -531,9 +553,10 @@ Same pattern as Tasks 1-2:
 ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
 ```
 ```julia
-# appended to XsdToStruct.jl/test/runtests.jl
+# appended to XsdToStruct.jl/test/runtests.jl - same correction as Task 1 Step 4: one
+# unscoped call, ReTestItems auto-discovers every *_tests.jl file in the directory tree
 using ReTestItems
-ReTestItems.runtests(@__DIR__; testitem_timeout = 300, name = r"lazy_struct_codegen_tests\.jl$")
+ReTestItems.runtests(XsdToStruct; testitem_timeout = 300)
 ```
 
 - [ ] **Step 4: Add a "does this node have a lazy constructor" helper**
@@ -950,13 +973,40 @@ git commit -m "Emit @lazy structs with per-field _init_ accessors for choice-fre
 
 Create `XmlStructLoader.jl/test/load_strategy_tests.jl`:
 
+**Correction from the plan's original draft:** `@testitem`s each run as top-level code in their own
+fresh module and cannot see a plain top-level function defined outside them, even in the same file
+(confirmed against `ReTestItems.jl`'s own README). Shared helper code must go in a `@testsetup
+module`, referenced via the `setup` keyword. This file defines one such setup, used by all three
+`@testitem`s below *and* by Task 6's `lazy_equivalence_tests.jl` later (same package - a
+`@testsetup` is discovered package-wide by `ReTestItems.runtests`, not scoped to the file it's
+defined in).
+
 ```julia
-@testitem "ReadOnAccess: load() returns a struct whose fields are readable and correct" begin
+@testsetup module LazyLoadTestHelpers
+    using AbstractXsdTypes
+    export extract_generated_module_name, fully_materialized_tree_string
+
+    function extract_generated_module_name(source::String)::Union{Symbol,Nothing}
+        for line in split(source, '\n')
+            m = match(r"^module\s+(\w+)", line)
+            isnothing(m) || return Symbol(m[1])
+        end
+        return nothing
+    end
+
+    function fully_materialized_tree_string(obj)::String
+        io = IOBuffer()
+        Base.invokelatest(AbstractXsdTypes.print_tree, io, obj; print_all = true)
+        return String(take!(io))
+    end
+end
+
+@testitem "ReadOnAccess: load() returns a struct whose fields are readable and correct" setup=[LazyLoadTestHelpers] begin
     xsd_path = joinpath(@__DIR__, "test_data", "generic_data", "basic_types.xsd")
     outdir = mktempdir()
     generated_path = XsdToStruct.xsd_to_struct_module(xsd_path, outdir)
     Base.include(Main, generated_path)
-    module_name = _extract_module_name_for_load_tests(read(generated_path, String))
+    module_name = extract_generated_module_name(read(generated_path, String))
     module_ref = Base.invokelatest(getproperty, Main, module_name)
 
     xml_path = joinpath(@__DIR__, "test_data", "generic_cases", "basic_types.xml")
@@ -967,12 +1017,12 @@ Create `XmlStructLoader.jl/test/load_strategy_tests.jl`:
     @test Base.invokelatest(getproperty, te1, :Element_double) == 100.22
 end
 
-@testitem "ReadOnAccess with validate=true raises ArgumentError before parsing" begin
+@testitem "ReadOnAccess with validate=true raises ArgumentError before parsing" setup=[LazyLoadTestHelpers] begin
     xsd_path = joinpath(@__DIR__, "test_data", "generic_data", "basic_types.xsd")
     outdir = mktempdir()
     generated_path = XsdToStruct.xsd_to_struct_module(xsd_path, outdir)
     Base.include(Main, generated_path)
-    module_name = _extract_module_name_for_load_tests(read(generated_path, String))
+    module_name = extract_generated_module_name(read(generated_path, String))
     module_ref = Base.invokelatest(getproperty, Main, module_name)
 
     xml_path = joinpath(@__DIR__, "test_data", "generic_cases", "basic_types.xml")
@@ -982,12 +1032,12 @@ end
     )
 end
 
-@testitem "ReadAllData remains the default and is unaffected" begin
+@testitem "ReadAllData remains the default and is unaffected" setup=[LazyLoadTestHelpers] begin
     xsd_path = joinpath(@__DIR__, "test_data", "generic_data", "basic_types.xsd")
     outdir = mktempdir()
     generated_path = XsdToStruct.xsd_to_struct_module(xsd_path, outdir)
     Base.include(Main, generated_path)
-    module_name = _extract_module_name_for_load_tests(read(generated_path, String))
+    module_name = extract_generated_module_name(read(generated_path, String))
     module_ref = Base.invokelatest(getproperty, Main, module_name)
 
     xml_path = joinpath(@__DIR__, "test_data", "generic_cases", "basic_types.xml")
@@ -998,14 +1048,6 @@ end
     @test Base.invokelatest(getproperty, te1_default, :Element_string) ==
           Base.invokelatest(getproperty, te1_explicit, :Element_string)
 end
-
-function _extract_module_name_for_load_tests(source::String)
-    for line in split(source, '\n')
-        m = match(r"^module\s+(\w+)", line)
-        isnothing(m) || return Symbol(m[1])
-    end
-    return nothing
-end
 ```
 
 Add `XsdToStruct` as a test-only dependency of `XmlStructLoader.jl/test/Project.toml` if not already present (needed to generate a fresh module in-test) via `Pkg.develop`/`Pkg.add` from `XmlStructLoader.jl/test`, not by hand-editing the TOML.
@@ -1015,12 +1057,12 @@ Add `XsdToStruct` as a test-only dependency of `XmlStructLoader.jl/test/Project.
 Run: `cd XmlStructLoader.jl && julia --project=. -e 'using Pkg; Pkg.test()'`
 Expected: FAIL — `ReadOnAccess`/`ReadAllData`/`load_strategy` keyword don't exist yet.
 
-- [ ] **Step 3: Wire the new test file into `runtests.jl`**
+- [ ] **Step 3: No `runtests.jl` change needed**
 
-Append to `XmlStructLoader.jl/test/runtests.jl` (alongside the Task 1 line):
-```julia
-ReTestItems.runtests(@__DIR__; testitem_timeout = 300, name = r"load_strategy_tests\.jl$")
-```
+This is the same package as Task 1 (`XmlStructLoader.jl`), which already added
+`ReTestItems.runtests(XmlStructLoader; testitem_timeout = 600)` to `runtests.jl` once. That call
+auto-discovers every `*_tests.jl` file in the directory tree, including this task's new
+`load_strategy_tests.jl` — nothing further to wire here. (Skip straight to Step 4.)
 
 - [ ] **Step 4: Add the `LoadStrategy` trait and rewrite `load()`**
 
@@ -1294,14 +1336,15 @@ git commit -m "Extend @compile_workload to also warm the ReadOnAccess (lazy) pat
 
 Create `XmlStructLoader.jl/test/lazy_equivalence_tests.jl`:
 
-```julia
-function _fully_materialized_tree_string(obj)::String
-    io = IOBuffer()
-    Base.invokelatest(AbstractXsdTypes.print_tree, io, obj; print_all = true)
-    return String(take!(io))
-end
+**Correction from the plan's original draft:** these tests reuse `LazyLoadTestHelpers`, the
+`@testsetup module` Task 4 defined in `load_strategy_tests.jl` — a `@testsetup` is discovered
+package-wide by `ReTestItems.runtests`, so a `@testitem` here can depend on it via `setup=[...]`
+even though it's physically defined in a different file. `fully_materialized_tree_string` (renamed
+from the plan's original `_fully_materialized_tree_string`) already covers what's needed here; no
+new setup module for this file.
 
-@testitem "ReadOnAccess fully materialized equals ReadAllData, across every generic-data fixture" begin
+```julia
+@testitem "ReadOnAccess fully materialized equals ReadAllData, across every generic-data fixture" setup=[LazyLoadTestHelpers] begin
     generic_data_dir = joinpath(@__DIR__, "test_data", "generic_cases")
     xsd_files = filter(f -> endswith(f, ".xsd"), readdir(joinpath(@__DIR__, "test_data", "generic_data"); join = true))
 
@@ -1315,37 +1358,37 @@ end
         outdir = mktempdir()
         generated_path = XsdToStruct.xsd_to_struct_module(xsd_path, outdir)
         Base.include(Main, generated_path)
-        module_name = _extract_module_name_for_load_tests(read(generated_path, String))
+        module_name = extract_generated_module_name(read(generated_path, String))
         module_ref = Base.invokelatest(getproperty, Main, module_name)
 
         for xml_path in xml_candidates
             eager = Base.invokelatest(XmlStructLoader.load, xml_path, module_ref; load_strategy = XmlStructLoader.ReadAllData())
             lazy = Base.invokelatest(XmlStructLoader.load, xml_path, module_ref; load_strategy = XmlStructLoader.ReadOnAccess())
-            @test _fully_materialized_tree_string(eager) == _fully_materialized_tree_string(lazy)
+            @test fully_materialized_tree_string(eager) == fully_materialized_tree_string(lazy)
         end
     end
 end
 
-@testitem "ReadOnAccess equals ReadAllData on the real ISO 20022 fixture" begin
+@testitem "ReadOnAccess equals ReadAllData on the real ISO 20022 fixture" setup=[LazyLoadTestHelpers] begin
     xsd_path = joinpath(@__DIR__, "test_data", "real_world", "pacs.008.001.09.xsd")
     xml_path = joinpath(@__DIR__, "test_data", "real_world", "pacs.008.001.09_instance.xml")
     outdir = mktempdir()
     generated_path = XsdToStruct.xsd_to_struct_module(xsd_path, outdir)
     Base.include(Main, generated_path)
-    module_name = _extract_module_name_for_load_tests(read(generated_path, String))
+    module_name = extract_generated_module_name(read(generated_path, String))
     module_ref = Base.invokelatest(getproperty, Main, module_name)
 
     eager = Base.invokelatest(XmlStructLoader.load, xml_path, module_ref; load_strategy = XmlStructLoader.ReadAllData())
     lazy = Base.invokelatest(XmlStructLoader.load, xml_path, module_ref; load_strategy = XmlStructLoader.ReadOnAccess())
-    @test _fully_materialized_tree_string(eager) == _fully_materialized_tree_string(lazy)
+    @test fully_materialized_tree_string(eager) == fully_materialized_tree_string(lazy)
 end
 
-@testitem "malformed document: ReadOnAccess load() succeeds, first bad-field access throws" begin
+@testitem "malformed document: ReadOnAccess load() succeeds, first bad-field access throws" setup=[LazyLoadTestHelpers] begin
     xsd_path = joinpath(@__DIR__, "test_data", "generic_data", "basic_types.xsd")
     outdir = mktempdir()
     generated_path = XsdToStruct.xsd_to_struct_module(xsd_path, outdir)
     Base.include(Main, generated_path)
-    module_name = _extract_module_name_for_load_tests(read(generated_path, String))
+    module_name = extract_generated_module_name(read(generated_path, String))
     module_ref = Base.invokelatest(getproperty, Main, module_name)
 
     good_xml = read(joinpath(@__DIR__, "test_data", "generic_cases", "basic_types.xml"), String)
@@ -1365,7 +1408,7 @@ end
     rm(bad_path; force = true)
 end
 
-@testitem "repeated field granularity: touching one element materializes the whole field, not siblings" begin
+@testitem "repeated field granularity: touching one element materializes the whole field, not siblings" setup=[LazyLoadTestHelpers] begin
     xsd_path = joinpath(@__DIR__, "test_data", "generic_data", "group_element.xsd")
     xml_candidates = filter(
         f -> endswith(f, ".xml"),
@@ -1376,7 +1419,7 @@ end
     outdir = mktempdir()
     generated_path = XsdToStruct.xsd_to_struct_module(xsd_path, outdir)
     Base.include(Main, generated_path)
-    module_name = _extract_module_name_for_load_tests(read(generated_path, String))
+    module_name = extract_generated_module_name(read(generated_path, String))
     module_ref = Base.invokelatest(getproperty, Main, module_name)
 
     lazy = Base.invokelatest(XmlStructLoader.load, group_xml, module_ref; load_strategy = XmlStructLoader.ReadOnAccess())
@@ -1389,13 +1432,13 @@ end
 end
 ```
 
-- [ ] **Step 2: Wire into `runtests.jl`**
+- [ ] **Step 2: No `runtests.jl` change needed**
 
-Append to `XmlStructLoader.jl/test/runtests.jl`:
-```julia
-ReTestItems.runtests(@__DIR__; testitem_timeout = 600, name = r"lazy_equivalence_tests\.jl$")
-```
-(Longer timeout than the other new files - the real ISO 20022 fixture test and the full generic-data sweep take longer than the unit-level tests.)
+Same package as Tasks 1 and 4 (`XmlStructLoader.jl`), already wired via the single
+`ReTestItems.runtests(XmlStructLoader; testitem_timeout = 600)` call from Task 1 (`testitem_timeout`
+was already set to 600 there specifically to cover this file's slower tests — the real ISO 20022
+fixture and the full generic-data sweep). `ReTestItems.runtests` is called exactly once per
+package; there is no "append another invocation" step here.
 
 - [ ] **Step 3: Run tests to verify they pass**
 
@@ -1470,9 +1513,9 @@ XmlStructLoader = "1bf1c528-19f0-4e43-b24f-ad91d84ffbf7"
 XsdToStruct = "3ae7ce5f-3138-4ab9-addd-ceedf56009da"
 ```
 ```julia
-# appended to XmlStructWriter.jl/test/runtests.jl
+# appended to XmlStructWriter.jl/test/runtests.jl - same correction as Task 1 Step 4
 using ReTestItems
-ReTestItems.runtests(@__DIR__; testitem_timeout = 300, name = r"lazy_roundtrip_tests\.jl$")
+ReTestItems.runtests(XmlStructWriter; testitem_timeout = 300)
 ```
 
 - [ ] **Step 3: Run test to verify it passes**
