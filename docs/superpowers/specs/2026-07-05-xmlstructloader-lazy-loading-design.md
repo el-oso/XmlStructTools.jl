@@ -93,13 +93,29 @@ Reviewed with a second independent design pass (Fable) before finalizing. Approa
 
 ## Components
 
-**AbstractXsdTypes.jl** (new file):
+**Placement deviation from the reference branch (confirmed with user):** the reference branch put
+its lazy node/document types and parsing helpers in `AbstractXsdTypes.jl`, which required adding
+`EzXML` as a new direct dependency of that package (confirmed via its `Project.toml`). Current
+main's `AbstractXsdTypes.jl` has zero XML backend dependency — by design, it's backend-agnostic —
+and `XmlStructLoader.jl` already owns the pugixml dependency plus the exact abstraction layer
+(`xml_abstraction.jl`: `name`, `content`, `haschildren`, `getattributes_dict`) this needs. So the
+new lazy machinery lives in **`XmlStructLoader.jl`** instead, not `AbstractXsdTypes.jl`. Generated
+modules already `import XmlStructLoader` (from the merged precompile-workload feature), so
+`_init_<field>` bodies can call `XmlStructLoader.<helper>` with no circular dependency.
+
+**XmlStructLoader.jl** (new file, e.g. `src/xml_parser/lazy_xml_node.jl`):
 - `PugixmlDocumentHandle`, `LazyNode` as described above.
 - Lazy parsing helpers adapted from the reference design (`_node_with_name`,
   `_parse_child_xml_node`, `_parse_xml_list`, `_init_simple_node`, attribute-dict extraction) —
   same shape, operating on `LazyNode`, matching current main's `__xml_attributes`/`__validated`
   field naming (the reference branch's renamed `xml_attributes`/`validated` was an unrelated
-  refactor on that branch, out of scope here).
+  refactor on that branch, out of scope here). These are entirely new, additive functions — the
+  existing eager pipeline (`xml_parser.jl`, `xml_parser_in_module.jl`, `xml_parser_type_info.jl`)
+  is untouched; `ReadOnAccess` never calls `construct_xml_object`/`construct_xml_root_object` at
+  all, since that machinery's `AbstractTrees.PostOrderDFS` + `Dict{Symbol,Any}` bottom-up
+  accumulation model only exists to support all-at-once eager construction. Lazy loading is a
+  simple top-down `StructName(node)` constructor per type, same shape as the reference branch's
+  `EzXML`-based one.
 - **Not porting `lazy_kwdef.jl`.** The reference branch itself didn't use that macro in codegen —
   it hand-generates the outer keyword constructor directly, same as the existing non-lazy codegen
   path. Not carrying over machinery even its own author bypassed in practice.
@@ -123,11 +139,13 @@ Reviewed with a second independent design pass (Fable) before finalizing. Approa
 latency work already hit this exact class of bug: `import_module`/`use_module`
 (`xml_module_utilities.jl`) `include()` generated code directly into `XmlStructLoader.jl`'s own
 module scope, so any package a generated module's code needs must resolve from *that* package's
-own `Project.toml`, not the caller's environment. `LazilyInitializedFields.jl` is a new runtime
-dependency of `AbstractXsdTypes.jl` (used directly by generated struct code) — it must be checked
-against every place generated code gets `include()`d (both `XmlStructLoader.jl`'s own
-`import_module`/`use_module` path and the plain `Base.include(Main, ...)` path some tests use) the
-same way `PrecompileTools` was, not assumed to just work because it's declared once somewhere.
+own `Project.toml`, not the caller's environment. The generated struct submodule emits
+`using LazilyInitializedFields` directly (needed for the `@lazy` macro), so — following the
+placement decision above — `LazilyInitializedFields.jl` is a new runtime dependency of
+**`XmlStructLoader.jl`** (not `AbstractXsdTypes.jl`). It must be checked against every place
+generated code gets `include()`d (both `XmlStructLoader.jl`'s own `import_module`/`use_module` path
+and the plain `Base.include(Main, ...)` path some tests use), the same way `PrecompileTools` was —
+not assumed to just work because it's declared once somewhere.
 
 ## Data flow (`ReadOnAccess`)
 
