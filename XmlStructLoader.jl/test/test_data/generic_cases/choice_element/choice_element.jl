@@ -7,6 +7,8 @@ All generated types are exported by this module and some meta data is included i
 In order to use this module the following dependencies need to be installed:
     AbstractXsdTypes
     Reexport
+    PrecompileTools
+    XmlStructLoader
 
 This module can be used/import as follows:
 
@@ -28,6 +30,18 @@ using Reexport
 
 include("choice_element_struct.jl")
 @reexport using .TestChoice_struct
+
+import PrecompileTools
+import XmlStructLoader
+
+const __XSDTOSTRUCT_SAMPLE_XML__ = """<document><TestElement1><element1>x</element1><choice1>x</choice1><element2>x</element2></TestElement1><TestElement2><choice1>x</choice1></TestElement2><TestElement5><choice1>x</choice1><choice3>x</choice3></TestElement5></document>"""
+
+PrecompileTools.@compile_workload begin
+    try
+        XmlStructLoader.load(IOBuffer(__XSDTOSTRUCT_SAMPLE_XML__), @__MODULE__; validate = false)
+    catch
+    end
+end
 
 module __meta
 
