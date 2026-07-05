@@ -152,11 +152,18 @@ The workload's `load()` call is wrapped in a silent `try/catch`:
 ```julia
 PrecompileTools.@compile_workload begin
     try
-        XmlStructLoader.load(IOBuffer(SAMPLE_XML), @__MODULE__; validate = false)
+        __xsdtostruct_sample_path__ = tempname()
+        write(__xsdtostruct_sample_path__, __XSDTOSTRUCT_SAMPLE_XML__)
+        XmlStructLoader.load(__xsdtostruct_sample_path__, @__MODULE__; validate = false)
+        rm(__xsdtostruct_sample_path__; force = true)
     catch
     end
 end
 ```
+
+(Loads via a real temp file, not `IOBuffer` — `load(::String, ::Module)` is its own top-level
+method specialization, distinct from the `IOBuffer` overload, and real callers overwhelmingly use
+the path-based form.)
 
 If synthesis produces something `load()` rejects (an unanticipated schema shape — deep recursion,
 unusual `xs:any` placement, etc.), the generated module still defines every struct correctly and
@@ -164,6 +171,16 @@ still works at runtime; it simply misses the extra warm-up for that one schema. 
 "detect which schemas are safe to synthesize for, upfront" capability check because it's simpler
 and can never regress a schema that used to generate fine — worst case is a silent gap in warm-up
 coverage, not a broken module.
+
+**Sharp edge (found post-implementation):** this silent catch also means a mistake anywhere else
+in the generated module's ordering can silently defeat the entire workload without any test or
+build ever noticing. Concretely: `write_top_module_to_io` must emit `write_meta_module_part`
+*before* `write_precompile_workload_part`, because `load()` reads `module_ref.__meta.root_type`
+and the workload runs inline as the module body executes top-to-bottom — if `__meta` isn't defined
+yet, every workload call throws `UndefVarError` immediately, is swallowed by the catch, and the
+workload compiles nothing beyond that point. This was caught only by measuring actual cold-load
+latency after embedding the generated module in a real package (a plain `include()` never exercises
+`@compile_workload` at all, so this class of bug is invisible to `Pkg.test()`).
 
 ## New dependency footprint
 

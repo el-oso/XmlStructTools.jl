@@ -4,7 +4,7 @@
 
 **Goal:** every module `XsdToStruct.xsd_to_struct_module` generates carries its own `PrecompileTools.@compile_workload` that runs a synthesized, schema-shaped sample document through `XmlStructLoader.load`, so the expensive per-schema specialization (`type_in_module`, `get_base_field_type`, `construct_xml_node_child_objects`) is already compiled and cached by the time a real caller loads real data — persisting across every future process, since these generated modules are generally consumed by being `include()`d inside another real, separately-installed package (confirmed — not the loose-script pattern the generated docstring's example shows).
 
-**Architecture:** A new synthesis pass in `XsdToStruct.jl` walks the same `ComplexTreeNode`/`FieldData` tree the struct-writer already walks, building a minimal type-parseable (not restriction-satisfying) sample XML string for the schema's root type. That string plus a `PrecompileTools.@compile_workload` block calling `XmlStructLoader.load(IOBuffer(SAMPLE), @__MODULE__; validate=false)` get emitted into the generated top-level module file. A silent `try/catch` around the workload call means an unanticipated schema shape can never break module generation — it only forfeits the warm-up for that one schema.
+**Architecture:** A new synthesis pass in `XsdToStruct.jl` walks the same `ComplexTreeNode`/`FieldData` tree the struct-writer already walks, building a minimal type-parseable (not restriction-satisfying) sample XML string for the schema's root type. That string plus a `PrecompileTools.@compile_workload` block calling `XmlStructLoader.load(path, @__MODULE__; validate=false)` (a real temp file, not `IOBuffer` — see the post-implementation note at Step 5) get emitted into the generated top-level module file, *after* the `__meta` submodule is defined (workload ordering also corrected post-implementation — see Step 5). A silent `try/catch` around the workload call means an unanticipated schema shape can never break module generation — it only forfeits the warm-up for that one schema.
 
 **Tech Stack:** Julia 1.12, `XsdToStruct.jl` (this plan's package), `XmlStructLoader.jl` (new test-only dependency), `PrecompileTools.jl` (test-only dependency of `XsdToStruct.jl`, needed to exercise `@compile_workload` in tests — already a *main* dependency of `XsdToStruct.jl` on this branch, for its own pre-existing `xsd_to_struct_module` workload).
 
@@ -102,7 +102,7 @@ that only exists once `write_top_module_to_io` is wired up:
         # scalar leaves got dummy values
         @test occursin("<Element_string>x</Element_string>", sample_xml)
         @test occursin("<Element_boolean>false</Element_boolean>", sample_xml)
-        @test occursin("<Element_dateTime>2000-01-01T00:00:00</Element_dateTime>", sample_xml)
+        @test occursin("<Element_dateTime>2000-01-01T00:00:00+00:00</Element_dateTime>", sample_xml)
         # TestElement2 is TestSimpleType1 (restriction base="string", pattern="([0-9A-Z]{4})?") —
         # resolved one level to its base scalar shape ("String") and got a dummy value ("x") that
         # doesn't match the pattern at all. Only possible because the workload calls load() with
@@ -203,7 +203,7 @@ const SAMPLE_SCALAR_VALUES = Dict(
     "Bool" => "false",
     "Int64" => "0",
     "UInt64" => "0",
-    "Union{ZonedDateTime, DateTime}" => "2000-01-01T00:00:00",
+    "Union{ZonedDateTime, DateTime}" => "2000-01-01T00:00:00+00:00",
 )
 
 function find_defined_node(
@@ -554,6 +554,20 @@ function write_top_module_to_io(xsd_module_builder::XSDStructModuleBuilderType):
     return nothing
 end
 ```
+
+**Post-implementation correction (found by measuring actual cold-load latency, not by any test):**
+this ordering is a bug — `write_precompile_workload_part` must come *after*
+`write_meta_module_part`, not before. The workload calls `XmlStructLoader.load()`, which reads
+`module_ref.__meta.root_type`; since `@compile_workload` runs inline as the module body executes
+top-to-bottom, running it before `__meta` exists means every workload call throws `UndefVarError`
+immediately, silently caught by the try/catch — so the workload never compiled anything past that
+point. This went undetected through implementation and all four review passes because a plain
+`include()` (what every test in this plan uses) never triggers `@compile_workload` at all; only
+embedding the generated module in a real, separately-precompiled package surfaces it. The shipped
+code swaps the two calls back to `write_meta_module_part` then `write_precompile_workload_part`
+(i.e. keep the ordering from the "before" block above, and insert the workload call after it, not
+before). This one fix took cold `load()` latency from ~2.55s down to ~0.155s (~21x), the "near
+instant" result expected from `@compile_workload` in the first place.
 
 - [ ] **Step 6: Update the generated docstring's dependency list**
 
