@@ -7,6 +7,7 @@ All generated types are exported by this module and some meta data is included i
 In order to use this module the following dependencies need to be installed:
     AbstractXsdTypes
     Reexport
+    XmlStructLoader
     Dates
     TimeZones
 
@@ -30,6 +31,15 @@ using Reexport
 
 include("date_formats_struct.jl")
 @reexport using .TestDateFormats_struct
+
+import XmlStructLoader
+
+const __XSDTOSTRUCT_SAMPLE_XML__ = """<document><TestElement1><Element_dateTime>2000-01-01T00:00:00</Element_dateTime></TestElement1></document>"""
+
+try
+    XmlStructLoader.load(IOBuffer(__XSDTOSTRUCT_SAMPLE_XML__), @__MODULE__; validate = false)
+catch
+end
 
 module __meta
 
