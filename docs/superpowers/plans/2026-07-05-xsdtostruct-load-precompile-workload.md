@@ -1,24 +1,27 @@
-# XsdToStruct eager load() warm-up Implementation Plan
+# XsdToStruct @compile_workload Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** every module `XsdToStruct.xsd_to_struct_module` generates runs an eager, synthesized, schema-shaped sample document through `XmlStructLoader.load` the moment it's `include()`d, so the expensive per-schema specialization (`type_in_module`, `get_base_field_type`, `construct_xml_node_child_objects`) is already compiled by the time a real caller makes its own first `load()` call in that process.
+**Goal:** every module `XsdToStruct.xsd_to_struct_module` generates carries its own `PrecompileTools.@compile_workload` that runs a synthesized, schema-shaped sample document through `XmlStructLoader.load`, so the expensive per-schema specialization (`type_in_module`, `get_base_field_type`, `construct_xml_node_child_objects`) is already compiled and cached by the time a real caller loads real data — persisting across every future process, since these generated modules are generally consumed by being `include()`d inside another real, separately-installed package (confirmed — not the loose-script pattern the generated docstring's example shows).
 
-**Architecture:** A new synthesis pass in `XsdToStruct.jl` walks the same `ComplexTreeNode`/`FieldData` tree the struct-writer already walks, building a minimal type-parseable (not restriction-satisfying) sample XML string for the schema's root type. That string plus a plain top-level `try/catch` calling `XmlStructLoader.load(IOBuffer(SAMPLE), @__MODULE__; validate=false)` get emitted into the generated top-level module file — no `PrecompileTools`/`@compile_workload` involved (verified inert for plain `include()`'d files — see spec). The `try/catch` means an unanticipated schema shape can never break module generation — it only forfeits the warm-up for that one schema. This moves the compile-tax cost from "your first real `load()` call is slow" to "the `include()` of the generated module is slow" — it does not reduce total work, and does not persist across separate `julia` process restarts.
+**Architecture:** A new synthesis pass in `XsdToStruct.jl` walks the same `ComplexTreeNode`/`FieldData` tree the struct-writer already walks, building a minimal type-parseable (not restriction-satisfying) sample XML string for the schema's root type. That string plus a `PrecompileTools.@compile_workload` block calling `XmlStructLoader.load(IOBuffer(SAMPLE), @__MODULE__; validate=false)` get emitted into the generated top-level module file. A silent `try/catch` around the workload call means an unanticipated schema shape can never break module generation — it only forfeits the warm-up for that one schema.
 
-**Tech Stack:** Julia 1.12, `XsdToStruct.jl` (this plan's package), `XmlStructLoader.jl` (new test-only + generated-module dependency). No `PrecompileTools` dependency anywhere — ruled out empirically (see spec's "Mechanism" section: its body never runs outside real package precompilation of an installed package, and `xsd_to_struct_module`'s output is a loose `.jl` file, never installed).
+**Tech Stack:** Julia 1.12, `XsdToStruct.jl` (this plan's package), `XmlStructLoader.jl` (new test-only + generated-module dependency), `PrecompileTools.jl` (new generated-module dependency; test-only for `XsdToStruct.jl` itself, needed to exercise `@compile_workload` in tests).
 
 **Branch:** `feature/xsdtostruct-load-precompile-workload` (already checked out, off `main` — this plan targets `main`'s current state, not the unmerged `perf/xml-backend-bakeoff` branch. `main` still uses `LightXML` in `XsdToStruct.jl`; that's unaffected by this plan either way.)
+
+**Design history note:** an earlier pass through this plan mistakenly ruled out `@compile_workload` (tested only against a bare `include()`'d script, where it's genuinely inert) and used a plain eager `try/catch` call instead. That was reverted once it was confirmed that generated modules are normally `include()`d from inside another real, already-installed package — in that context `@compile_workload` fires correctly and, measured, wins decisively (fresh-process cold `load()`: no workload 3.33s, plain eager call 2.70s, `@compile_workload` 1.65s — see spec's "Mechanism" section for the full investigation). If Task 2 was already in progress under the eager-call design when this plan version is read, discard that work and start Task 2 fresh from this version.
 
 ## Global Constraints
 
 - Spec: `docs/superpowers/specs/2026-07-05-xsdtostruct-load-precompile-workload-design.md` — every requirement below traces back to it.
-- `validate=false` in the eager call's `load()` call — dummy values only need to be type-parseable, never restriction-compliant (no min/max/digits/pattern/enumeration logic needed).
-- Every generated module gains `import XmlStructLoader` unconditionally — no opt-out flag, no `PrecompileTools` dependency.
-- The eager call is wrapped in a silent `try/catch` — synthesis failures must never break a generated module.
+- `validate=false` in the workload's `load()` call — dummy values only need to be type-parseable, never restriction-compliant (no min/max/digits/pattern/enumeration logic needed).
+- Every generated module gains `import PrecompileTools` and `import XmlStructLoader` unconditionally — no opt-out flag.
+- The workload's `load()` call is wrapped in a silent `try/catch` — synthesis failures must never break a generated module.
 - `GroupFieldData` fields and any tree-node kind other than `ComplexTreeNode`/`SimpleTreeNode` are skipped (omitted) in synthesis — out of scope for v1, safe because of the try/catch above.
 - Element attributes (`__xml_attributes`) are not synthesized — out of scope, no per-schema benefit (see spec).
-- `XsdToStruct.jl`'s own `Project.toml` gains **no new runtime dependency** — it only emits text referencing `XmlStructLoader`, it doesn't `using` it itself.
+- `XsdToStruct.jl`'s own `Project.toml` gains **no new runtime dependency** — it only emits text referencing `PrecompileTools`/`XmlStructLoader`, it doesn't `using` them itself.
+- `@compile_workload`'s body does not run under a plain `include()` — a test that only `include()`s the generated file cannot verify the workload actually fires; that requires a real installed-package harness (own `Project.toml`/UUID, triggered via `using`).
 
 ---
 
@@ -330,42 +333,64 @@ git commit -m "Add sample-XML synthesis for per-schema load() warm-up calls"
 
 ---
 
-### Task 2: Wire the synthesized sample + an eager `load()` warm-up into generated modules
+### Task 2: Wire the synthesized sample + `@compile_workload` into generated modules
 
 **Files:**
 - Modify: `XsdToStruct.jl/src/xsd_module_builder/xsd_module_builder.jl` (`write_module` — reorder the two writer calls)
 - Modify: `XsdToStruct.jl/src/xsd_module_builder/xsd_module_builder_top.jl` (`write_top_module_to_io`, `write_docstring_part`; add `write_precompile_workload_part`)
+- Modify: `XsdToStruct.jl/test/Project.toml` (add `PrecompileTools` as a test-only dep)
 - Test: `XsdToStruct.jl/test/test_generated_module_precompile_workload.jl` (new)
 - Modify: `XsdToStruct.jl/test/XsdToStructTests.jl` (add the include)
 
-No new test dependency needed for this task — `XmlStructLoader` was already added as a test-only dep in Task 1, and no `PrecompileTools` dependency is needed anywhere (ruled out — see spec).
+`XmlStructLoader` was already added as a test-only dep in Task 1.
 
 **Interfaces:**
 - Consumes: `synthesize_sample_xml(xsd_module_builder)` from Task 1.
-- Produces: every file `xsd_to_struct_module` generates now contains `import XmlStructLoader`, a `const` sample-XML string, and a plain top-level `try/catch` calling `load(...)` — this is the deliverable a real caller sees, nothing further consumes it internally.
+- Produces: every file `xsd_to_struct_module` generates now contains `import PrecompileTools`, `import XmlStructLoader`, a `const` sample-XML string, and a `@compile_workload` block — this is the deliverable a real caller sees, nothing further consumes it internally.
 
-- [ ] **Step 1: Write the failing test**
+**Scope note:** `@compile_workload`'s body only runs during real package precompilation
+(`jl_generating_output == 1`), never under a plain `include()` (confirmed empirically — see spec).
+This task's own test therefore only checks (a) the generated source text is correct, and (b) a
+plain `include()`-based `load()` call still returns correct values (a basic regression/no-syntax-
+breakage check — the workload body simply doesn't run in this scenario, so there's nothing to
+verify about it here). Proving the workload actually fires and delivers the latency win requires a
+real installed-package harness, which is Task 3's job (it already needs one for its A/B
+measurement) — don't duplicate that harness here.
+
+- [ ] **Step 1: Add `PrecompileTools` as a test-only dependency**
+
+```bash
+cd XsdToStruct.jl/test
+julia --project=. -e 'using Pkg; Pkg.add("PrecompileTools")'
+cd ../..
+git status --short XsdToStruct.jl/
+```
+
+Expected: only `XsdToStruct.jl/test/Project.toml` and `test/Manifest.toml` change.
+
+- [ ] **Step 2: Write the failing test**
 
 Create `XsdToStruct.jl/test/test_generated_module_precompile_workload.jl`:
 
 ```julia
-@testset "generated module eager load() warm-up" begin
-    @testset "basic_types — generated file contains the warm-up, and a real load() still works after it" begin
+@testset "generated module @compile_workload" begin
+    @testset "basic_types — generated file contains the workload, and a real load() still works after it" begin
         xsd_path = joinpath(@__DIR__, "test_data", "generic_data", "basic_types.xsd")
         outdir = mktempdir()
         generated_path = xsd_to_struct_module(xsd_path, outdir)
 
         generated_source = read(generated_path, String)
+        @test occursin("import PrecompileTools", generated_source)
         @test occursin("import XmlStructLoader", generated_source)
-        @test occursin("XmlStructLoader.load(", generated_source)
+        @test occursin("PrecompileTools.@compile_workload", generated_source)
         @test occursin("validate = false", generated_source)
         @test occursin("try", generated_source)
         @test occursin("catch", generated_source)
 
-        # the generated file must still be valid, loadable Julia, and a REAL load() against real
-        # data (not the synthesized dummy) must still return correct values — this is the
-        # no-contamination check: running the eager warm-up call at include-time must not leave
-        # any state that corrupts a subsequent real load() in the same process.
+        # @compile_workload's body only runs during real package precompilation, never under a
+        # plain include() — so this include() only exercises the surrounding code (struct
+        # definitions, the sample string, the file being syntactically valid), not the workload
+        # body itself. A real load() call afterward must still return correct values.
         Base.include(Main, generated_path)
         generated_module = Base.invokelatest(getproperty, Main, :basic_types)
 
@@ -384,7 +409,7 @@ Create `XsdToStruct.jl/test/test_generated_module_precompile_workload.jl`:
         xsd_path = joinpath(@__DIR__, "test_data", "generic_data", "choice_element.xsd")
         outdir = mktempdir()
         generated_path = xsd_to_struct_module(xsd_path, outdir)
-        @test occursin("XmlStructLoader.load(", read(generated_path, String))
+        @test occursin("PrecompileTools.@compile_workload", read(generated_path, String))
     end
 end
 ```
@@ -395,16 +420,16 @@ Add the include to `XsdToStruct.jl/test/XsdToStructTests.jl`:
 include("test_generated_module_precompile_workload.jl")
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 3: Run test to verify it fails**
 
 ```bash
 cd XsdToStruct.jl
 julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 
-Expected: FAIL — `occursin("XmlStructLoader.load(", generated_source)` is `false` (nothing emits it yet).
+Expected: FAIL — `occursin("PrecompileTools.@compile_workload", generated_source)` is `false` (nothing emits it yet).
 
-- [ ] **Step 3: Reorder `write_module` so struct-writing populates `defined_nodes` before the top-module writer needs it**
+- [ ] **Step 4: Reorder `write_module` so struct-writing populates `defined_nodes` before the top-module writer needs it**
 
 In `XsdToStruct.jl/src/xsd_module_builder/xsd_module_builder.jl`, change:
 
@@ -422,7 +447,7 @@ to:
 
 (Safe: nothing in `write_top_module_to_io` depends on write-order — `write_docstring_part` only reads `xsd_tree`/`module_name`, `write_struct_module_part` only emits an `include(...)` line referencing the struct file by name, `write_meta_module_part` only reads `xsd_tree.root_field.julia_type`. The two functions write to separate, already-open file handles, so swapping call order doesn't affect either file's own content — it only makes `defined_nodes` available in time for the new precompile part.)
 
-- [ ] **Step 4: Add `write_precompile_workload_part` and wire it in**
+- [ ] **Step 5: Add `write_precompile_workload_part` and wire it in**
 
 In `XsdToStruct.jl/src/xsd_module_builder/xsd_module_builder_top.jl`, add a new function (place it after `write_struct_module_part`, before `write_meta_module_part`):
 
@@ -431,6 +456,7 @@ function write_precompile_workload_part(xsd_module_builder::XSDStructModuleBuild
     sample_xml = synthesize_sample_xml(xsd_module_builder)
     isnothing(sample_xml) && return nothing
 
+    writeln(xsd_module_builder, IOTop, "import PrecompileTools")
     writeln(xsd_module_builder, IOTop, "import XmlStructLoader")
 
     write(xsd_module_builder, IOTop, "\n")
@@ -439,21 +465,21 @@ function write_precompile_workload_part(xsd_module_builder::XSDStructModuleBuild
 
     write(xsd_module_builder, IOTop, "\n")
 
-    writeln(xsd_module_builder, IOTop, "try")
+    writeln(xsd_module_builder, IOTop, "PrecompileTools.@compile_workload begin")
+    writeln(xsd_module_builder, IOTop, "try", indent_level = 1)
     writeln(
         xsd_module_builder,
         IOTop,
         "XmlStructLoader.load(IOBuffer(__XSDTOSTRUCT_SAMPLE_XML__), @__MODULE__; validate = false)",
-        indent_level = 1,
+        indent_level = 2,
     )
-    writeln(xsd_module_builder, IOTop, "catch")
+    writeln(xsd_module_builder, IOTop, "catch", indent_level = 1)
+    writeln(xsd_module_builder, IOTop, "end", indent_level = 1)
     writeln(xsd_module_builder, IOTop, "end")
 
     return nothing
 end
 ```
-
-Note: no `@compile_workload`/`PrecompileTools` here — the `try`/`catch` runs as plain top-level code, executed unconditionally the moment this file is `include()`d. That's the entire mechanism (see spec's "Mechanism" section for why `@compile_workload` and signature-only `precompile()` were both ruled out empirically).
 
 Then wire it into `write_top_module_to_io` — change:
 
@@ -523,7 +549,7 @@ function write_top_module_to_io(xsd_module_builder::XSDStructModuleBuilderType):
 end
 ```
 
-- [ ] **Step 5: Update the generated docstring's dependency list**
+- [ ] **Step 6: Update the generated docstring's dependency list**
 
 In `write_docstring_part` (same file), change:
 
@@ -544,6 +570,7 @@ to:
     writeln(xsd_module_builder, IOTop, "In order to use this module the following dependencies need to be installed:")
     writeln(xsd_module_builder, IOTop, "AbstractXsdTypes", indent_level = 1)
     writeln(xsd_module_builder, IOTop, "Reexport", indent_level = 1)
+    writeln(xsd_module_builder, IOTop, "PrecompileTools", indent_level = 1)
     writeln(xsd_module_builder, IOTop, "XmlStructLoader", indent_level = 1)
     if xsd_module_builder.xsd_tree.requires_TimeZones
         writeln(xsd_module_builder, IOTop, "Dates", indent_level = 1)
@@ -552,7 +579,7 @@ to:
     writeln(xsd_module_builder, IOTop)
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [ ] **Step 7: Run test to verify it passes**
 
 ```bash
 cd XsdToStruct.jl
@@ -561,19 +588,21 @@ julia --project=. -e 'using Pkg; Pkg.test()'
 
 Expected: PASS, including the real `load()` assertions against `basic_types.xml`.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add XsdToStruct.jl/src/xsd_module_builder/xsd_module_builder.jl \
         XsdToStruct.jl/src/xsd_module_builder/xsd_module_builder_top.jl \
         XsdToStruct.jl/test/test_generated_module_precompile_workload.jl \
-        XsdToStruct.jl/test/XsdToStructTests.jl
-git commit -m "Emit an eager XmlStructLoader.load warm-up call in every generated module"
+        XsdToStruct.jl/test/XsdToStructTests.jl \
+        XsdToStruct.jl/test/Project.toml \
+        XsdToStruct.jl/test/Manifest.toml
+git commit -m "Emit a PrecompileTools.@compile_workload in every generated module"
 ```
 
 ---
 
-### Task 3: Full-suite gate + cold-latency verification
+### Task 3: Full-suite gate + real-precompilation latency verification
 
 **Files:** none (verification only).
 
@@ -597,66 +626,102 @@ cd ..
 
 (Skip `XmlStructPugixml.jl` — it doesn't exist on `main`, only on the unmerged `perf/xml-backend-bakeoff` branch.)
 
-Expected: all PASS. `XsdToStruct.jl`'s own test suite is the only one that exercises the new code path directly (neither `XmlStructWriter.jl` nor `XmlStructLoader.jl` call `xsd_to_struct_module`'s codegen in a way that would newly break from this change), so this step is a should-be-a-no-op regression check.
+**Known pre-existing failure, unrelated to this feature:** `XmlStructLoader.jl`'s own test suite is
+currently broken on `main` — confirmed independently on a clean `origin/main` worktree with
+registry-resolved deps (69/72 errors, `BoundsError` in `get_base_field_type`,
+`xml_parser_type_info.jl`). Root cause: a `ConcreteStructs` `"0.1"`→`"0.2"` compat bump (already
+merged via CompatHelper) changed the field layout of `AbstractXsdTypes.jl`'s
+`@concrete struct UnionType`, and `get_base_field_type`'s index-based `fieldtype(T, field_index)`
+no longer matches. This predates this branch and this feature entirely — do not attempt to fix it
+as part of this task; report it as a pre-existing failure, not a regression, and do not let it block
+this plan's own completion. Since `XmlStructWriter.jl`'s test suite depends on `XmlStructLoader.jl`
+being loadable (not necessarily on this specific broken code path executing), confirm whether it's
+affected too and report accordingly — if it also fails for the *same* reason, that's expected and
+still not this feature's concern; if it fails for a *different* reason, treat that as a real finding
+requiring investigation before this task is done.
 
-- [ ] **Step 3: Measure the actual latency shift**
+- [ ] **Step 3: Measure the actual latency win via a real installed-package harness**
 
-The benefit doesn't show up as "less total work" — it shows up as "`include()` gets slower, but the
-caller's own first real `load()` call afterward gets dramatically faster" (measured directly during
-design: first call 3.24s, second call in the same process 0.0017s). So the measurement must
-explicitly separate include-time from first-real-load-time, not lump them into one
-`load(path, module_path::AbstractString)` call (which internally does both the `include()`
-and the real construction in a single call, and so wouldn't show the shift distinctly).
+`@compile_workload`'s body only runs during real package precompilation
+(`jl_generating_output == 1`) — it does **not** run under a bare `include()`, confirmed during
+design. So this measurement needs the generated module embedded inside a small, real, separately
+installed package (its own `Project.toml`/UUID), the same way it's actually consumed. Build this
+fresh each time rather than reusing anything from Task 2's test — Task 2's test deliberately does
+NOT exercise real precompilation (see its Scope note).
 
-Generate the module fresh, then in a **fresh** process (this branch, eager warm-up present),
-time `import_module_from_xml` (which triggers the `include()`, hence the eager warm-up call)
-separately from a subsequent real `load()`:
+Generate the module and build the harness package:
 
 ```bash
 cd XsdToStruct.jl
 DIR=$(mktemp -d)
 julia --project=. -e "
 using XsdToStruct
-xsd_to_struct_module(\"test/test_data/generic_data/basic_types.xsd\", \"$DIR\")
+xsd_to_struct_module(\"test/test_data/generic_data/basic_types.xsd\", \"\$DIR\")
 "
-julia --project=. --startup-file=no -e "
-using XmlStructLoader
-xml = \"../XmlStructLoader.jl/test/test_data/generic_cases/basic_types.xml\"
-t_include = @elapsed module_ref = XmlStructLoader.import_module_from_xml(xml, \"$DIR/basic_types\")
-println(\"time to import/include the generated module (now does the eager warm-up): \", t_include, \" s\")
-t_load = @elapsed XmlStructLoader.load(xml, module_ref)
-println(\"first real load() call afterward, same process: \", t_load, \" s\")
-"
+
+HARNESS=$(mktemp -d)
+mkdir -p "$HARNESS/HarnessPkg/src"
+HARNESS_UUID=$(julia -e 'using UUIDs; print(uuid4())')
+cat > "$HARNESS/HarnessPkg/Project.toml" <<EOF
+name = "HarnessPkg"
+uuid = "$HARNESS_UUID"
+version = "0.1.0"
+
+[deps]
+AbstractXsdTypes = "894546dd-dc3f-42e8-9b69-a7785ccf72be"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+TimeZones = "f269a46b-ccf7-5d73-abea-4c690281aa53"
+XmlStructLoader = "1bf1c528-19f0-4e43-b24f-ad91d84ffbf7"
+EOF
+cp "$DIR/basic_types/basic_types.jl" "$HARNESS/HarnessPkg/src/"
+cp "$DIR/basic_types/basic_types_struct.jl" "$HARNESS/HarnessPkg/src/"
+cat > "$HARNESS/HarnessPkg/src/HarnessPkg.jl" <<'EOF'
+module HarnessPkg
+include("basic_types.jl")
+import .basic_types
+end
+EOF
+
+ENV_DIR=$(mktemp -d)
+julia --project="$ENV_DIR" -e "using Pkg; Pkg.develop(path=raw\"$HARNESS/HarnessPkg\"); Pkg.develop(path=raw\"$(pwd)/..\"/XmlStructLoader.jl); Pkg.instantiate()"
 ```
 
-Then stash this branch's changes and repeat against `main` as the baseline:
+(The explicit `Pkg.develop` of the sibling `XmlStructLoader.jl` ensures the harness environment uses
+this monorepo's local copy, not a registered version — this monorepo's established convention for
+avoiding version-skew bugs between sibling packages.)
+
+Trigger real precompilation in a subprocess (this is where `@compile_workload`'s body actually
+executes), then in a **separate fresh** subprocess measure the cold `load()` call against the real
+`basic_types.xml` fixture:
 
 ```bash
-git stash
-DIR2=$(mktemp -d)
-julia --project=. -e "
-using XsdToStruct
-xsd_to_struct_module(\"test/test_data/generic_data/basic_types.xsd\", \"$DIR2\")
-"
-julia --project=. --startup-file=no -e "
-using XmlStructLoader
-xml = \"../XmlStructLoader.jl/test/test_data/generic_cases/basic_types.xml\"
-t_include = @elapsed module_ref = XmlStructLoader.import_module_from_xml(xml, \"$DIR2/basic_types\")
-println(\"baseline (no warm-up) time to import/include: \", t_include, \" s\")
-t_load = @elapsed XmlStructLoader.load(xml, module_ref)
-println(\"baseline first real load() call: \", t_load, \" s\")
-"
-git stash pop
+julia --project="$ENV_DIR" -e "using HarnessPkg"
+
+CHECK=$(mktemp --suffix=.jl)
+cat > "$CHECK" <<EOF
+using HarnessPkg, XmlStructLoader
+xml = raw"$(pwd)/../XmlStructLoader.jl/test/test_data/generic_cases/basic_types.xml"
+t = @elapsed loaded = XmlStructLoader.load(xml, HarnessPkg.basic_types)
+println("cold load() with @compile_workload-precompiled package: ", t, " s")
+println("check: ", loaded.TestElement1.Element_string)
+EOF
+julia --project="$ENV_DIR" --startup-file=no "$CHECK"
 ```
 
-Expected: on this branch, `t_include` should be dramatically higher than baseline's `t_include`
-(it now pays the full compile tax via the eager warm-up), and `t_load` should be dramatically lower
-than baseline's `t_load` (near-instant, since the specialization is already warm) — the opposite
-pattern from baseline, where `t_include` is fast (~0.5s, just defining structs) and `t_load` is slow
-(~3.7s, full compile tax deferred to first real use). Report all four numbers; if this branch's
-`t_load` is *not* meaningfully faster than baseline's, that's a signal the `try/catch` in Task 2
-Step 4 is silently swallowing the eager call (e.g. the synthesized sample doesn't actually parse) —
-worth investigating before considering this plan done.
+Then stash this branch's changes, regenerate the module (now without the workload), rebuild a fresh
+harness the same way (new tempdirs — don't reuse the old `HARNESS`/`ENV_DIR`, since the old one is
+already precompiled with the workload baked in), and repeat the same two subprocess steps to get the
+baseline number, then `git stash pop`.
+
+Expected: this branch's number should be dramatically lower than the baseline's (baseline was
+measured at ~3.3s for this exact fixture/harness shape during design; with the workload, ~1.65s —
+see the spec's "Mechanism" section for the full three-way comparison). Report both numbers; if this
+branch's number is *not* meaningfully faster, that's a signal the workload isn't actually firing
+during precompilation (check the `julia --project="$ENV_DIR" -e "using HarnessPkg"` step's output —
+it should take noticeably longer than a normal package precompile if the workload ran) — worth
+investigating before considering this plan done.
 
 - [ ] **Step 4: No commit needed** — this task is verification-only; Tasks 1 and 2 already committed everything.
 
@@ -664,6 +729,6 @@ worth investigating before considering this plan done.
 
 ## Self-Review Notes
 
-- **Spec coverage:** `validate=false` (Task 1 Step 4, Task 2 Step 4) ✓; unconditional new `XmlStructLoader` dep in generated modules, no `PrecompileTools` anywhere (Task 2 Steps 4-5) ✓; silent try/catch (Task 2 Step 4) ✓; `GroupFieldData`/unhandled-node-kind skip (Task 1 Step 4) ✓; no new runtime dep on `XsdToStruct.jl`'s own `Project.toml` (only `test/Project.toml` touched, in Task 1 only) ✓; latency-shift verification against the spec's measured numbers (Task 3 Step 3) ✓.
-- **Type consistency:** `synthesize_sample_xml(xsd_module_builder::XSDStructModuleBuilderType)::Union{Nothing,String}` is defined in Task 1 Step 4 and consumed with that exact name/signature in Task 2 Step 4 — matches.
+- **Spec coverage:** `validate=false` (Task 1 Step 4, Task 2 Step 5) ✓; unconditional new `PrecompileTools`/`XmlStructLoader` deps in generated modules (Task 2 Steps 5-6) ✓; silent try/catch (Task 2 Step 5) ✓; `GroupFieldData`/unhandled-node-kind skip (Task 1 Step 4) ✓; no new runtime dep on `XsdToStruct.jl`'s own `Project.toml` (only `test/Project.toml` touched, in Tasks 1 and 2) ✓; real-precompilation latency verification against the spec's measured three-way comparison (Task 3 Step 3) ✓; known pre-existing unrelated failure flagged so it isn't mistaken for a regression (Task 3 Step 2) ✓.
+- **Type consistency:** `synthesize_sample_xml(xsd_module_builder::XSDStructModuleBuilderType)::Union{Nothing,String}` is defined in Task 1 Step 4 and consumed with that exact name/signature in Task 2 Step 5 — matches.
 - **Scope:** single cohesive feature, one package (`XsdToStruct.jl`), two implementation tasks plus a verification-only gate — not further decomposable without creating an artificial task boundary.
