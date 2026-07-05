@@ -13,7 +13,7 @@ end
 
 function TestComplexType1(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return TestComplexType1(node, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return TestComplexType1(node, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function TestComplexType1(__lazy_arg_1, __xml_attributes = nothing, __validated::Bool = true)
@@ -25,7 +25,7 @@ function TestComplexType1(; Element_list_double, __xml_attributes = nothing, __v
 end
 
 function _init_Element_list_double(o::TestComplexType1)
-    return [(let owner = child.owner; GC.@preserve owner XmlStructLoader.parse_xml_node_not_module(child.ptr, Float64, @__MODULE__, false, nothing); end) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_list_double")]
+    return Float64[(let owner = child.owner; GC.@preserve owner XmlStructLoader.parse_xml_node_not_module(child.ptr, Float64, @__MODULE__, false, nothing); end) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_list_double")]
 end
 
 @doc """
@@ -43,7 +43,7 @@ end
 
 function TestComplexType2(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return TestComplexType2(node, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return TestComplexType2(node, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function TestComplexType2(__lazy_arg_1, __xml_attributes = nothing, __validated::Bool = true)
@@ -55,7 +55,7 @@ function TestComplexType2(; Element_list_string, __xml_attributes = nothing, __v
 end
 
 function _init_Element_list_string(o::TestComplexType2)
-    return [(let owner = child.owner; GC.@preserve owner XmlStructLoader.parse_xml_node_not_module(child.ptr, String, @__MODULE__, false, nothing); end) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_list_string")]
+    return String[(let owner = child.owner; GC.@preserve owner XmlStructLoader.parse_xml_node_not_module(child.ptr, String, @__MODULE__, false, nothing); end) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_list_string")]
 end
 
 @doc """
@@ -73,7 +73,7 @@ end
 
 function TestComplexType4(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return TestComplexType4(node, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return TestComplexType4(node, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function TestComplexType4(__lazy_arg_1, __xml_attributes = nothing, __validated::Bool = true)
@@ -106,7 +106,7 @@ end
 
 function TestComplexType5(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return TestComplexType5(node, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return TestComplexType5(node, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function TestComplexType5(__lazy_arg_1, __xml_attributes = nothing, __validated::Bool = true)
@@ -139,7 +139,7 @@ end
 
 function TestComplexType3(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return TestComplexType3(node, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return TestComplexType3(node, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function TestComplexType3(__lazy_arg_1, __xml_attributes = nothing, __validated::Bool = true)
@@ -151,7 +151,7 @@ function TestComplexType3(; Element_type4_list, __xml_attributes = nothing, __va
 end
 
 function _init_Element_type4_list(o::TestComplexType3)
-    return [TestComplexType4(child) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_type4_list")]
+    return TestComplexType4[TestComplexType4(child) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_type4_list")]
 end
 
 @doc """
@@ -172,7 +172,7 @@ end
 
 function documentType(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return documentType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return documentType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function documentType(__lazy_arg_1, __lazy_arg_2, __lazy_arg_3, __lazy_arg_4, __xml_attributes = nothing, __validated::Bool = true)

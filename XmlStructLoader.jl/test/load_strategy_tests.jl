@@ -10,7 +10,27 @@
         return nothing
     end
 
+    # AbstractXsdTypes.print_tree(...; print_all=true), as of the Task 2 fix, deliberately never
+    # materializes an uninit lazy field itself (it prints "uninit" and moves on) - print_all only
+    # controls whether an *already-materialized* nested complex value is recursed into. So getting
+    # a "fully materialized" string requires touching every field ourselves first (forcing exactly
+    # the same accessor path a real caller would hit), then handing the now-fully-populated object
+    # to print_tree purely for formatting.
+    function force_materialize!(obj)::Nothing
+        obj isa AbstractXsdTypes.AbstractXSDComplex || return nothing
+        for name in Base.invokelatest(propertynames, obj)
+            value = Base.invokelatest(getproperty, obj, name)
+            if value isa AbstractXsdTypes.AbstractXSDComplex
+                force_materialize!(value)
+            elseif value isa AbstractVector
+                foreach(force_materialize!, value)
+            end
+        end
+        return nothing
+    end
+
     function fully_materialized_tree_string(obj)::String
+        Base.invokelatest(force_materialize!, obj)
         io = IOBuffer()
         Base.invokelatest(AbstractXsdTypes.print_tree, io, obj; print_all = true)
         return String(take!(io))

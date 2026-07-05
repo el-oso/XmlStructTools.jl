@@ -115,7 +115,7 @@ AbstractXsdTypes.defaults(::Type{TestComplexType5}) = (Element_simple2 = TestCom
 
 function TestComplexType5(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return TestComplexType5(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return TestComplexType5(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function TestComplexType5(__lazy_arg_1, __lazy_arg_2, __xml_attributes = nothing, __validated::Bool = true)
@@ -163,7 +163,7 @@ AbstractXsdTypes.defaults(::Type{TestComplexType6}) = (Element_simple1 = ZonedDa
 
 function TestComplexType6(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return TestComplexType6(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return TestComplexType6(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function TestComplexType6(__lazy_arg_1, __lazy_arg_2, __lazy_arg_3, __lazy_arg_4, __lazy_arg_5, __xml_attributes = nothing, __validated::Bool = true)
@@ -178,7 +178,7 @@ function _init_Element_simple1(o::TestComplexType6)
     child = XmlStructLoader.lazy_child_with_name(o._node, "Element_simple1", true)
     isnothing(child) && return nothing
     owner = child.owner
-    return GC.@preserve owner XmlStructLoader.parse_xml_node_not_module(child.ptr, Union{ZonedDateTime, DateTime}, @__MODULE__, false, 0001-01-01T00:00:00+00:00)
+    return GC.@preserve owner XmlStructLoader.parse_xml_node_not_module(child.ptr, Union{ZonedDateTime, DateTime}, @__MODULE__, false, ZonedDateTime("0001-01-01T00:00:00+00:00", "yyyy-mm-ddTHH:MM:SSzzzzzz"))
 end
 
 function _init_Element_simple2(o::TestComplexType6)
@@ -192,21 +192,21 @@ function _init_Element_simple3(o::TestComplexType6)
     child = XmlStructLoader.lazy_child_with_name(o._node, "Element_simple3", false)
     isnothing(child) && return nothing
     owner = child.owner
-    return GC.@preserve owner XmlStructLoader.parse_xml_node_not_module(child.ptr, Union{ZonedDateTime, DateTime}, @__MODULE__, false, 0001-02-03T04:05:06.666)
+    return GC.@preserve owner XmlStructLoader.parse_xml_node_not_module(child.ptr, Union{ZonedDateTime, DateTime}, @__MODULE__, false, DateTime("0001-02-03T04:05:06.666"))
 end
 
 function _init_Element_simple4(o::TestComplexType6)
     child = XmlStructLoader.lazy_child_with_name(o._node, "Element_simple4", true)
     isnothing(child) && return nothing
     owner = child.owner
-    return GC.@preserve owner XmlStructLoader.parse_xml_node_not_module(child.ptr, Union{ZonedDateTime, DateTime}, @__MODULE__, false, 0999-08-07T06:55:44-03:22)
+    return GC.@preserve owner XmlStructLoader.parse_xml_node_not_module(child.ptr, Union{ZonedDateTime, DateTime}, @__MODULE__, false, ZonedDateTime("0999-08-07T06:55:44-03:22", "yyyy-mm-ddTHH:MM:SSzzzzzz"))
 end
 
 function _init_Element_simple5(o::TestComplexType6)
     child = XmlStructLoader.lazy_child_with_name(o._node, "Element_simple5", true)
     isnothing(child) && return nothing
     owner = child.owner
-    return GC.@preserve owner XmlStructLoader.parse_xml_node_not_module(child.ptr, Union{ZonedDateTime, DateTime}, @__MODULE__, false, 0004-05-06T07:08:09Z)
+    return GC.@preserve owner XmlStructLoader.parse_xml_node_not_module(child.ptr, Union{ZonedDateTime, DateTime}, @__MODULE__, false, ZonedDateTime("0004-05-06T07:08:09Z", "yyyy-mm-ddTHH:MM:SSzzzzzz"))
 end
 
 @doc """
@@ -227,7 +227,7 @@ end
 
 function TestComplexType1(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return TestComplexType1(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return TestComplexType1(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function TestComplexType1(__lazy_arg_1, __lazy_arg_2, __lazy_arg_3, __lazy_arg_4, __xml_attributes = nothing, __validated::Bool = true)
@@ -288,7 +288,7 @@ AbstractXsdTypes.defaults(::Type{TestComplexType2}) = (Element_string = String("
 
 function TestComplexType2(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return TestComplexType2(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return TestComplexType2(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function TestComplexType2(__lazy_arg_1, __lazy_arg_2, __lazy_arg_3, __lazy_arg_4, __xml_attributes = nothing, __validated::Bool = true)
@@ -348,7 +348,7 @@ AbstractXsdTypes.defaults(::Type{TestComplexType3}) = (Element_simple1 = TestSim
 
 function TestComplexType3(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return TestComplexType3(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return TestComplexType3(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function TestComplexType3(__lazy_arg_1, __lazy_arg_2, __lazy_arg_3, __xml_attributes = nothing, __validated::Bool = true)
@@ -360,15 +360,18 @@ function TestComplexType3(; Element_simple1 = nothing, Element_simple2 = nothing
 end
 
 function _init_Element_simple1(o::TestComplexType3)
-    return [(let owner = child.owner, parent_node = XmlStructLoader.field_parent_node(o._node.ptr, typeof(o)); GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestSimpleType1, parent_node), @__MODULE__, false); end) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_simple1")]
+    matched = TestSimpleType1[(let owner = child.owner, parent_node = XmlStructLoader.field_parent_node(o._node.ptr, typeof(o)); GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestSimpleType1, parent_node), @__MODULE__, false); end) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_simple1")]
+    return isempty(matched) ? nothing : matched
 end
 
 function _init_Element_simple2(o::TestComplexType3)
-    return [(let owner = child.owner, parent_node = XmlStructLoader.field_parent_node(o._node.ptr, typeof(o)); GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestSimpleType2, parent_node), @__MODULE__, false); end) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_simple2")]
+    matched = TestSimpleType2[(let owner = child.owner, parent_node = XmlStructLoader.field_parent_node(o._node.ptr, typeof(o)); GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestSimpleType2, parent_node), @__MODULE__, false); end) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_simple2")]
+    return isempty(matched) ? nothing : matched
 end
 
 function _init_Element_simple2_or_nothing(o::TestComplexType3)
-    return [(let owner = child.owner, parent_node = XmlStructLoader.field_parent_node(o._node.ptr, typeof(o)); GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestSimpleType2, parent_node), @__MODULE__, false); end) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_simple2_or_nothing")]
+    matched = TestSimpleType2[(let owner = child.owner, parent_node = XmlStructLoader.field_parent_node(o._node.ptr, typeof(o)); GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestSimpleType2, parent_node), @__MODULE__, false); end) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_simple2_or_nothing")]
+    return isempty(matched) ? nothing : matched
 end
 
 @doc """
@@ -391,7 +394,7 @@ AbstractXsdTypes.defaults(::Type{TestComplexType4_element}) = (Element_simple1_2
 
 function TestComplexType4_element(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return TestComplexType4_element(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return TestComplexType4_element(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function TestComplexType4_element(__lazy_arg_1, __lazy_arg_2, __lazy_arg_3, __lazy_arg_4, __xml_attributes = nothing, __validated::Bool = true)
@@ -449,7 +452,7 @@ end
 
 function TestComplexType4(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return TestComplexType4(node, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return TestComplexType4(node, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function TestComplexType4(__lazy_arg_1, __xml_attributes = nothing, __validated::Bool = true)
@@ -461,7 +464,8 @@ function TestComplexType4(; Element_complex4 = nothing, __xml_attributes = nothi
 end
 
 function _init_Element_complex4(o::TestComplexType4)
-    return [TestComplexType4_element(child) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_complex4")]
+    matched = TestComplexType4_element[TestComplexType4_element(child) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_complex4")]
+    return isempty(matched) ? nothing : matched
 end
 
 @doc """
@@ -484,7 +488,7 @@ end
 
 function documentType(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return documentType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return documentType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function documentType(__lazy_arg_1, __lazy_arg_2, __lazy_arg_3, __lazy_arg_4, __lazy_arg_5, __lazy_arg_6, __xml_attributes = nothing, __validated::Bool = true)

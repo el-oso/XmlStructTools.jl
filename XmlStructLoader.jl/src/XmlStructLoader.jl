@@ -113,9 +113,22 @@ function load(xml_io::IO, module_ref::Module, ::ReadOnAccess; validate::Bool = t
     doc_ptr = XmlStructPugixml.parse_buffer(read(xml_io))
     doc_ptr == C_NULL && error("pugixml failed to parse XML from IO")
     handle = PugixmlDocumentHandle(doc_ptr)  # registered immediately, before anything else can throw
-    root_node = LazyNode(XmlStructPugixml.root(doc_ptr), handle)
+    root_ptr = XmlStructPugixml.root(doc_ptr)
+    root_node = LazyNode(root_ptr, handle)
     root_type = Base.@invokelatest module_ref.__meta.root_type
-    return Base.@invokelatest root_type(root_node)
+    loaded = Base.@invokelatest root_type(root_node)
+    # Match construct_xml_root_object's eager-path bookkeeping: it stamps the document root's own
+    # tag name into __xml_attributes["__root_name"] (XmlStructWriter.jl reads this back out to know
+    # what to name the root element when serializing). The generic per-node LazyNode constructor
+    # (shared by every complex type, root or nested) has no way to know "this particular call is
+    # for the document root", so there is no way to inject it there without wrongly stamping every
+    # nested field too - this is the one call site that actually knows. The struct is mutable (a
+    # LazilyInitializedFields.@lazy requirement), so a direct post-construction field write is safe.
+    attrs = getfield(loaded, :__xml_attributes)
+    attrs = isnothing(attrs) ? Dict{String, String}() : attrs
+    attrs["__root_name"] = name(root_ptr)
+    setfield!(loaded, :__xml_attributes, attrs)
+    return loaded
 end
 
 """

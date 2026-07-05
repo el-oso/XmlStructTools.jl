@@ -87,7 +87,7 @@ module documentTypeTypes
 
     function TestComplex1(node::XmlStructLoader.LazyNode)
         attribs = XmlStructLoader.lazy_attributes_dict(node)
-        return TestComplex1(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+        return TestComplex1(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
     end
 
     function TestComplex1(__lazy_arg_1, __lazy_arg_2, __lazy_arg_3, __xml_attributes = nothing, __validated::Bool = true)
@@ -173,7 +173,7 @@ end
 
 function documentType(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return documentType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return documentType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function documentType(__lazy_arg_1, __lazy_arg_2, __lazy_arg_3, __lazy_arg_4, __xml_attributes = nothing, __validated::Bool = true)

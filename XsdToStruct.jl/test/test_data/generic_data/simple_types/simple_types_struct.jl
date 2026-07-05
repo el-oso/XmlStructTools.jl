@@ -130,7 +130,7 @@ end
 
 function TestComplexType1(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return TestComplexType1(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return TestComplexType1(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function TestComplexType1(__lazy_arg_1, __lazy_arg_2, __lazy_arg_3, __lazy_arg_4, __lazy_arg_5, __xml_attributes = nothing, __validated::Bool = true)
@@ -196,7 +196,7 @@ AbstractXsdTypes.defaults(::Type{TestComplexType2}) = (TestElement11 = TestSimpl
 
 function TestComplexType2(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return TestComplexType2(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return TestComplexType2(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function TestComplexType2(__lazy_arg_1, __lazy_arg_2, __lazy_arg_3, __lazy_arg_4, __xml_attributes = nothing, __validated::Bool = true)
@@ -255,7 +255,7 @@ end
 
 function documentType(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return documentType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return documentType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function documentType(__lazy_arg_1, __lazy_arg_2, __xml_attributes = nothing, __validated::Bool = true)

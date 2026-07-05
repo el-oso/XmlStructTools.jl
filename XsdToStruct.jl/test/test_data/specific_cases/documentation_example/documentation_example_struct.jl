@@ -16,7 +16,7 @@ end
 
 function AddressType(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return AddressType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return AddressType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function AddressType(__lazy_arg_1, __lazy_arg_2, __lazy_arg_3, __lazy_arg_4, __xml_attributes = nothing, __validated::Bool = true)
@@ -67,7 +67,7 @@ end
 
 function OwnerType(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return OwnerType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return OwnerType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function OwnerType(__lazy_arg_1, __lazy_arg_2, __xml_attributes = nothing, __validated::Bool = true)
@@ -103,7 +103,7 @@ end
 
 function overallPropertiesType(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return overallPropertiesType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return overallPropertiesType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function overallPropertiesType(__lazy_arg_1, __lazy_arg_2, __xml_attributes = nothing, __validated::Bool = true)
@@ -140,7 +140,7 @@ end
 
 function roomType(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return roomType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return roomType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function roomType(__lazy_arg_1, __lazy_arg_2, __xml_attributes = nothing, __validated::Bool = true)
@@ -177,7 +177,7 @@ end
 
 function HouseDescriptionType(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return HouseDescriptionType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return HouseDescriptionType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function HouseDescriptionType(__lazy_arg_1, __lazy_arg_2, __xml_attributes = nothing, __validated::Bool = true)
@@ -195,7 +195,7 @@ function _init_overallProperties(o::HouseDescriptionType)
 end
 
 function _init_room(o::HouseDescriptionType)
-    return [roomType(child) for child in XmlStructLoader.lazy_children_with_name(o._node, "room")]
+    return roomType[roomType(child) for child in XmlStructLoader.lazy_children_with_name(o._node, "room")]
 end
 
 export HouseDescriptionType
@@ -211,7 +211,7 @@ end
 
 function HouseDescriptionDocumentType(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return HouseDescriptionDocumentType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return HouseDescriptionDocumentType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function HouseDescriptionDocumentType(__lazy_arg_1, __lazy_arg_2, __lazy_arg_3, __xml_attributes = nothing, __validated::Bool = true)

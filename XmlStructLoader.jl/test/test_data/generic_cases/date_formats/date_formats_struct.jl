@@ -16,7 +16,7 @@ end
 
 function TestComplexType1(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return TestComplexType1(node, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return TestComplexType1(node, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function TestComplexType1(__lazy_arg_1, __xml_attributes = nothing, __validated::Bool = true)
@@ -28,7 +28,7 @@ function TestComplexType1(; Element_dateTime, __xml_attributes = nothing, __vali
 end
 
 function _init_Element_dateTime(o::TestComplexType1)
-    return [(let owner = child.owner; GC.@preserve owner XmlStructLoader.parse_xml_node_not_module(child.ptr, Union{ZonedDateTime, DateTime}, @__MODULE__, false, nothing); end) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_dateTime")]
+    return Union{ZonedDateTime, DateTime}[(let owner = child.owner; GC.@preserve owner XmlStructLoader.parse_xml_node_not_module(child.ptr, Union{ZonedDateTime, DateTime}, @__MODULE__, false, nothing); end) for child in XmlStructLoader.lazy_children_with_name(o._node, "Element_dateTime")]
 end
 
 @doc """
@@ -46,7 +46,7 @@ end
 
 function documentType(node::XmlStructLoader.LazyNode)
     attribs = XmlStructLoader.lazy_attributes_dict(node)
-    return documentType(node, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+    return documentType(node, LazilyInitializedFields.uninit, attribs, false)
 end
 
 function documentType(__lazy_arg_1, __xml_attributes = nothing, __validated::Bool = true)

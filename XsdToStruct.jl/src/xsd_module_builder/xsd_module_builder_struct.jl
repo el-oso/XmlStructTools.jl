@@ -314,10 +314,14 @@ function write_lazy_node_constructor(
     data_fields = filter(f -> !(f isa GroupFieldData), all_fields)
     uninit_args = repeat("LazilyInitializedFields.uninit, ", length(data_fields))
 
+    # Store attribs as-is (never folded to `nothing` when empty) - the eager path's own
+    # getattributes_dict always returns a real, possibly-empty Dict{String,String} and never
+    # `nothing` for this field, so folding here would make __xml_attributes's representation of
+    # "no attributes" diverge between the two load strategies for no benefit.
     ctor = """
     function $struct_name(node::XmlStructLoader.LazyNode)
         attribs = XmlStructLoader.lazy_attributes_dict(node)
-        return $struct_name(node, $(uninit_args)isempty(attribs) ? nothing : attribs, false)
+        return $struct_name(node, $(uninit_args)attribs, false)
     end
     """
     write(xsd_module_builder, IOStruct, ctor, indent_level = indent_level)
@@ -433,12 +437,26 @@ function write_lazy_field_accessors(
         is_scalar = field.julia_type in values(built_in_data_type_dict)
         lazy_capable_child = !is_scalar && is_lazy_capable_field_type(field, xsd_module_builder)
 
+        # A DateTime/ZonedDateTime default can't be embedded as a bare literal ("0001-01-01T...")
+        # the way a numeric or (quoted) string default can - it isn't valid Julia syntax on its own
+        # and would need parsing at the call site, but parse_xml_node_not_module's DateTime/
+        # ZonedDateTime method requires an already-constructed default_value (unlike its Number
+        # method, which does accept a bare literal). construct_time_default_value already builds
+        # exactly this constructor call correctly for the struct-level `AbstractXsdTypes.defaults`
+        # NamedTuple below - reuse it here instead of re-deriving the same special case.
         default_value_string =
-            isnothing(field.base_default_value) ? "nothing" :
-            (field.julia_type == "String" ? "\"$(field.base_default_value)\"" : field.base_default_value)
+            if isnothing(field.base_default_value)
+                "nothing"
+            elseif field.julia_type == "String"
+                "\"$(field.base_default_value)\""
+            elseif field.julia_type == "Union{ZonedDateTime, DateTime}"
+                construct_time_default_value(field.base_default_value)
+            else
+                field.base_default_value
+            end
 
         body = if field.is_vector
-            generate_vector_accessor_body(element_name, full_field_type, is_scalar, lazy_capable_child)
+            generate_vector_accessor_body(element_name, full_field_type, is_scalar, lazy_capable_child, field.can_be_missing)
         else
             generate_scalar_or_node_accessor_body(
                 element_name,
@@ -525,6 +543,7 @@ function generate_vector_accessor_body(
     full_field_type::AbstractString,
     is_scalar::Bool,
     lazy_capable_child::Bool,
+    can_be_missing::Bool,
 )::String
     # Same GC.@preserve requirement as the scalar/non-vector case above - child.ptr must never be
     # touched without it. GC.@preserve needs a bare variable, so each element wraps its own
@@ -538,7 +557,26 @@ function generate_vector_accessor_body(
         # not `nothing`, so the eager fallback's get_default doesn't crash on a missing parent.
         "(let owner = child.owner, parent_node = XmlStructLoader.field_parent_node(o._node.ptr, typeof(o)); GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, $full_field_type, parent_node), @__MODULE__, false); end)"
     end
-    return "    return [$element_expr for child in XmlStructLoader.lazy_children_with_name(o._node, \"$element_name\")]"
+    # The comprehension must be typed explicitly as $full_field_type[...], not left as a bare
+    # [...] literal: Julia infers a bare comprehension's eltype from the *runtime* values it
+    # actually produces (via typejoin), not from the declared field type - so a vector mixing e.g.
+    # ZonedDateTime and DateTime elements (both valid under a Union{ZonedDateTime,DateTime} field)
+    # would infer eltype AbstractDateTime, and a vector of named-simple-type elements built through
+    # dynamic dispatch can infer eltype Any - both incompatible with the @lazy field's declared
+    # Vector{$full_field_type} type, raising a TypeError on assignment. Prefixing the literal with
+    # the element type pins the eltype exactly, regardless of what each element's dynamic type is.
+    collect_expr = "$full_field_type[$element_expr for child in XmlStructLoader.lazy_children_with_name(o._node, \"$element_name\")]"
+
+    return if can_be_missing
+        # The eager path represents "an optional repeated element with zero occurrences" as
+        # `nothing` (the field simply never enters its parent's child_object_dict, so the type's
+        # own kwarg default - `nothing` - is used), never as an empty Vector. Match that here:
+        # otherwise the same document produces two different values (`nothing` vs `T[]`) depending
+        # on load strategy alone.
+        "    matched = $collect_expr\n    return isempty(matched) ? nothing : matched"
+    else
+        "    return $collect_expr"
+    end
 end
 
 function write_node_with_choice(

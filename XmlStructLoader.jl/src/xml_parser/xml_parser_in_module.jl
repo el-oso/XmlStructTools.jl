@@ -7,7 +7,17 @@ function parse_xml_node_in_module(node::XmlStructLoaderNode, module_ref::Module,
     T = node.type
     default_value = get_default(node)
 
-    if isempty(content(xml_node))
+    if haschildren(xml_node)
+        # T is a genuine multi-child complex type reached through the single-node eager-fallback
+        # path (e.g. a lazy struct's field whose own type is a choice-bearing complex type, which -
+        # unlike a choice-free complex type - has no per-field @lazy accessors of its own, so
+        # materializing it needs a full eager construction). The "single field" branch below only
+        # ever handled wrapper types (one value field); reuse the same subtree walk the document
+        # root uses, just rooted here instead of at the true document root.
+        child_object_dict = construct_xml_node_child_objects(xml_node, module_ref, validate; start_type = T)
+        xml_attributes = getattributes_dict(xml_node)
+        constructed_object = T(; __xml_attributes = xml_attributes, __validated = validate, child_object_dict...)
+    elseif isempty(content(xml_node))
         if !isnothing(default_value)
             # no data in node, construct with default value
             @debug "Constructing $T with default value."
@@ -18,7 +28,12 @@ function parse_xml_node_in_module(node::XmlStructLoaderNode, module_ref::Module,
             constructed_object = T(value = "")
         elseif T <: module_ref.AbstractXsdTypes.AbstractXSDComplex && isnothing(default_value)
             @debug "Constructing $T with only default values."
-            constructed_object = T()
+            # Thread the real validate flag and this node's own (possibly non-empty) attributes
+            # through - a bare T() would silently fall back to the type's own kwarg defaults
+            # (__validated=true, __xml_attributes=nothing) regardless of what the caller actually
+            # asked for, which is wrong for a validate=false caller and drops any real attributes
+            # on an otherwise-empty tag (e.g. <TestElement3 id="x"></TestElement3>).
+            constructed_object = T(; __xml_attributes = getattributes_dict(xml_node), __validated = validate)
         else
             @debug "Skip constructing $T, no node content or default value."
             constructed_object = nothing
@@ -39,10 +54,10 @@ end
 function construct_xml_node_child_objects(
     @nospecialize(xml_node::UnifiedXMLElement),
     module_ref::Module,
-    validate::Bool,
+    validate::Bool;
+    start_type = module_ref.__meta.root_type,
 )::Dict
-    root_type = module_ref.__meta.root_type
-    start_node = XmlStructLoaderNode(xml_node, root_type, nothing)
+    start_node = XmlStructLoaderNode(xml_node, start_type, nothing)
 
     fields = Dict{typeof(xml_node),Dict{Symbol,Any}}()
 
