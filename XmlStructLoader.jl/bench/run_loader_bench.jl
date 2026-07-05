@@ -5,12 +5,11 @@
 #   julia --project=bench bench/run_loader_bench.jl
 #
 # Methodology (matches this workspace's convention, see BlazingPorts.jl/CLAUDE.md): Chairmarks `@be`,
-# compare the MEDIAN, report rel-sigma (half-IQR/median) so the spread is visible. Full per-sample
-# distributions are saved to bench/results/*.json so later phases/plots regenerate from saved data
-# instead of re-benchmarking. Cold-call time is captured separately (fresh `julia` process per
-# fixture) since it's a distinct number from warm steady-state — relevant to the Phase 4 precompile
-# decision and the Phase 1 `@nospecialize` decision, neither of which should be judged from a warm-only
-# number.
+# compare the MEDIAN, report rel-sigma (half-IQR/median) so the spread is visible. Summary stats
+# (median/n/relsigma) are saved to bench/results/*.json for later comparison. Cold-call time is
+# captured separately (fresh `julia` process per fixture) since it's a distinct number from warm
+# steady-state — relevant to the Phase 4 precompile decision and the Phase 1 `@nospecialize`
+# decision, neither of which should be judged from a warm-only number.
 
 using Chairmarks, JSON, XmlStructLoader
 using Statistics: median, quantile
@@ -19,20 +18,9 @@ const HERE = @__DIR__
 const ROOT = dirname(HERE)
 include(joinpath(ROOT, "test", "test_utilities.jl"))  # get_test_files / get_matching_xml_files — no test-only deps
 
-const MAX_STORE_SAMPLES = 2000
-function _subsample(s, k)
-    length(s) <= k && return Float64.(s)
-    z = sort(s)
-    Float64.(z[unique(round.(Int, range(1, length(z); length = k)))])
-end
 function stats(b)
     s = Float64[x.time for x in b.samples]
-    (
-        median = median(s),
-        relsigma = (quantile(s, 0.75) - quantile(s, 0.25)) / 2 / median(s),
-        n = length(s),
-        samples = _subsample(s, MAX_STORE_SAMPLES),
-    )
+    (median = median(s), relsigma = (quantile(s, 0.75) - quantile(s, 0.25)) / 2 / median(s), n = length(s))
 end
 
 # fixture set: every generated-module dir under test_data/generic_cases + its paired .xml files
@@ -53,12 +41,7 @@ for (module_dir, xml_files) in generic_test_files
         b = @be XmlStructLoader.load($xml_path, $module_ref) seconds = 2
         r = stats(b)
         println("  $(key):  median=$(round(r.median * 1e6, digits = 2))us  (n=$(r.n), relsigma=$(round(100r.relsigma, digits = 1))%)")
-        out[key] = Dict(
-            "median_s" => r.median,
-            "relsigma" => r.relsigma,
-            "n" => r.n,
-            "samples" => r.samples,
-        )
+        out[key] = Dict("median_s" => r.median, "relsigma" => r.relsigma, "n" => r.n)
     end
 end
 
@@ -76,8 +59,7 @@ if isfile(large_xsd) && isfile(large_xml)
     println(
         "  large_synthetic ($(n_entries) entries):  median=$(round(r.median * 1e3, digits = 2))ms  (n=$(r.n), relsigma=$(round(100r.relsigma, digits = 1))%)",
     )
-    out["large_synthetic"] =
-        Dict("median_s" => r.median, "relsigma" => r.relsigma, "n" => r.n, "samples" => r.samples, "n_entries" => n_entries)
+    out["large_synthetic"] = Dict("median_s" => r.median, "relsigma" => r.relsigma, "n" => r.n, "n_entries" => n_entries)
 else
     @warn "large_synthetic fixture missing - run `julia --project=bench bench/gen_large_fixture.jl` first"
 end

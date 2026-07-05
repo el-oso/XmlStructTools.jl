@@ -62,9 +62,9 @@ end
 
 # xml_parser_in_module.jl's construct_xml_node_child_objects keys its `fields` accumulator dict
 # by the *raw* node (`AbstractTrees.parent(xml_child)`), not the XmlStructLoaderNode wrapper - this
-# map backs that lookup. Ptr{Cvoid} is isbits, so this dict is a normal fast hash map (unlike the
-# XML.jl prototype's LazyNode, which is pathological as an IdDict key - see
-# bench/prototype_xmljl/LAZY_FINDINGS.md). Reset once per document at the top of tree
+# map backs that lookup. Ptr{Cvoid} is isbits, so this dict is a normal fast hash map (unlike
+# XML.jl's LazyNode, which measured ~500-1000x slower as an IdDict key since it isn't isbits - see
+# commit ee9fbc3, "Investigate lazy-loading backends"). Reset once per document at the top of tree
 # construction (see the parent===nothing XmlStructLoaderNode constructor below).
 const _raw_parent_map = IdDict{Ptr{Cvoid}, Ptr{Cvoid}}()
 AbstractTrees.parent(node::Ptr{Cvoid}) = _raw_parent_map[node]

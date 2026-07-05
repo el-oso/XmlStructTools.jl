@@ -15,20 +15,9 @@ using Statistics: median, quantile
 const HERE = @__DIR__
 const ROOT = dirname(HERE)
 
-const MAX_STORE_SAMPLES = 2000
-function _subsample(s, k)
-    length(s) <= k && return Float64.(s)
-    z = sort(s)
-    return Float64.(z[unique(round.(Int, range(1, length(z); length = k)))])
-end
 function stats(b)
     s = Float64[x.time for x in b.samples]
-    return (
-        median = median(s),
-        relsigma = (quantile(s, 0.75) - quantile(s, 0.25)) / 2 / median(s),
-        n = length(s),
-        samples = _subsample(s, MAX_STORE_SAMPLES),
-    )
+    return (median = median(s), relsigma = (quantile(s, 0.75) - quantile(s, 0.25)) / 2 / median(s), n = length(s))
 end
 
 fixtures = [
@@ -56,9 +45,9 @@ for (name, xml_path, module_dir) in fixtures
     println("  peek overhead vs no-peek floor:    $(round((r_by_path.median - r_by_ref.median) * 1.0e6, digits = 2))us ($(round(100 * (r_by_path.median - r_by_ref.median) / r_by_ref.median, digits = 1))% of the no-peek floor)")
 
     out[name] = Dict(
-        "peek" => Dict("median_s" => r_peek.median, "relsigma" => r_peek.relsigma, "n" => r_peek.n, "samples" => r_peek.samples),
-        "load_by_path" => Dict("median_s" => r_by_path.median, "relsigma" => r_by_path.relsigma, "n" => r_by_path.n, "samples" => r_by_path.samples),
-        "load_by_ref" => Dict("median_s" => r_by_ref.median, "relsigma" => r_by_ref.relsigma, "n" => r_by_ref.n, "samples" => r_by_ref.samples),
+        "peek" => Dict("median_s" => r_peek.median, "relsigma" => r_peek.relsigma, "n" => r_peek.n),
+        "load_by_path" => Dict("median_s" => r_by_path.median, "relsigma" => r_by_path.relsigma, "n" => r_by_path.n),
+        "load_by_ref" => Dict("median_s" => r_by_ref.median, "relsigma" => r_by_ref.relsigma, "n" => r_by_ref.n),
     )
 end
 
