@@ -28,7 +28,7 @@
         # scalar leaves got dummy values
         @test occursin("<Element_string>x</Element_string>", sample_xml)
         @test occursin("<Element_boolean>false</Element_boolean>", sample_xml)
-        @test occursin("<Element_dateTime>2000-01-01T00:00:00</Element_dateTime>", sample_xml)
+        @test occursin("<Element_dateTime>2000-01-01T00:00:00+00:00</Element_dateTime>", sample_xml)
         # TestElement2 is TestSimpleType1 (restriction base="string", pattern="([0-9A-Z]{4})?") —
         # resolved one level to its base scalar shape ("String") and got a dummy value ("x") that
         # doesn't match the pattern at all. Only possible because the workload calls load() with

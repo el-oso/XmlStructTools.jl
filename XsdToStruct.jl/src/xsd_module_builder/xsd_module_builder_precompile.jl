@@ -4,7 +4,14 @@ const SAMPLE_SCALAR_VALUES = Dict(
     "Bool" => "false",
     "Int64" => "0",
     "UInt64" => "0",
-    "Union{ZonedDateTime, DateTime}" => "2000-01-01T00:00:00",
+    # A timezone-offset dateTime, not a plain one: real-world dateTime values commonly carry an
+    # offset (confirmed against this repo's own real-world ISO 20022 fixture, and the
+    # basic_types.xml test fixture), which resolves to ZonedDateTime and pulls in the much
+    # heavier TimeZones.jl/DateFormat parsing machinery - a plain offset-less value resolves to
+    # DateTime and never exercises that path at all, leaving it uncompiled by the workload.
+    # Measured directly: this one change closed a 149-vs-91 compiled-specialization gap down to
+    # parity (151 vs 149) for the basic_types fixture.
+    "Union{ZonedDateTime, DateTime}" => "2000-01-01T00:00:00+00:00",
 )
 
 function find_defined_node(

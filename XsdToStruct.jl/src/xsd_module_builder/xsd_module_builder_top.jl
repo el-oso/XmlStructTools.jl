@@ -17,11 +17,16 @@ function write_top_module_to_io(xsd_module_builder::XSDStructModuleBuilderType):
 
     write(xsd_module_builder, IOTop, "\n")
 
-    write_precompile_workload_part(xsd_module_builder)
+    # __meta must exist before the workload runs: XmlStructLoader.load() reads
+    # module_ref.__meta.root_type, and @compile_workload executes inline at this point in the
+    # module body, top-to-bottom - defining it after left every workload call hitting an
+    # UndefVarError on __meta, silently swallowed by the try/catch (see
+    # write_precompile_workload_part), so the workload never compiled anything past that point.
+    write_meta_module_part(xsd_module_builder)
 
     write(xsd_module_builder, IOTop, "\n")
 
-    write_meta_module_part(xsd_module_builder)
+    write_precompile_workload_part(xsd_module_builder)
 
     write(xsd_module_builder, IOTop, "\n")
 
@@ -115,14 +120,27 @@ function write_precompile_workload_part(xsd_module_builder::XSDStructModuleBuild
 
     write(xsd_module_builder, IOTop, "\n")
 
+    # Loads via a real temp file (String path -> IOStream), not IOBuffer: real callers
+    # overwhelmingly call load() with a file path, and that path is its own top-level method
+    # specialization (load(::String, ::Module)) distinct from the IOBuffer overload - measured
+    # directly, using IOBuffer alone left this specialization (and everything reachable only
+    # through it) uncompiled by the workload.
     writeln(xsd_module_builder, IOTop, "PrecompileTools.@compile_workload begin")
     writeln(xsd_module_builder, IOTop, "try", indent_level = 1)
+    writeln(xsd_module_builder, IOTop, "__xsdtostruct_sample_path__ = tempname()", indent_level = 1)
     writeln(
         xsd_module_builder,
         IOTop,
-        "XmlStructLoader.load(IOBuffer(__XSDTOSTRUCT_SAMPLE_XML__), @__MODULE__; validate = false)",
-        indent_level = 2,
+        "write(__xsdtostruct_sample_path__, __XSDTOSTRUCT_SAMPLE_XML__)",
+        indent_level = 1,
     )
+    writeln(
+        xsd_module_builder,
+        IOTop,
+        "XmlStructLoader.load(__xsdtostruct_sample_path__, @__MODULE__; validate = false)",
+        indent_level = 1,
+    )
+    writeln(xsd_module_builder, IOTop, "rm(__xsdtostruct_sample_path__; force = true)", indent_level = 1)
     writeln(xsd_module_builder, IOTop, "catch", indent_level = 1)
     writeln(xsd_module_builder, IOTop, "end", indent_level = 1)
     writeln(xsd_module_builder, IOTop, "end")

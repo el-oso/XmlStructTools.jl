@@ -33,18 +33,6 @@ using Reexport
 include("union_types_struct.jl")
 @reexport using .TestSimpleUnion_struct
 
-import PrecompileTools
-import XmlStructLoader
-
-const __XSDTOSTRUCT_SAMPLE_XML__ = """<document></document>"""
-
-PrecompileTools.@compile_workload begin
-    try
-        XmlStructLoader.load(IOBuffer(__XSDTOSTRUCT_SAMPLE_XML__), @__MODULE__; validate = false)
-    catch
-    end
-end
-
 module __meta
 
     import ..TestSimpleUnion_struct
@@ -53,6 +41,21 @@ module __meta
     xsd_filename = "union_types.xsd"
     XsdToStruct_version = "0.1.0"
 
+end
+
+import PrecompileTools
+import XmlStructLoader
+
+const __XSDTOSTRUCT_SAMPLE_XML__ = """<document></document>"""
+
+PrecompileTools.@compile_workload begin
+    try
+    __xsdtostruct_sample_path__ = tempname()
+    write(__xsdtostruct_sample_path__, __XSDTOSTRUCT_SAMPLE_XML__)
+    XmlStructLoader.load(__xsdtostruct_sample_path__, @__MODULE__; validate = false)
+    rm(__xsdtostruct_sample_path__; force = true)
+    catch
+    end
 end
 
 end

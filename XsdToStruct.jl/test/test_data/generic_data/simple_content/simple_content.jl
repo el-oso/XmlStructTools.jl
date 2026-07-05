@@ -33,18 +33,6 @@ using Reexport
 include("simple_content_struct.jl")
 @reexport using .TestSimpleContent_struct
 
-import PrecompileTools
-import XmlStructLoader
-
-const __XSDTOSTRUCT_SAMPLE_XML__ = """<document><TestElement1>x</TestElement1></document>"""
-
-PrecompileTools.@compile_workload begin
-    try
-        XmlStructLoader.load(IOBuffer(__XSDTOSTRUCT_SAMPLE_XML__), @__MODULE__; validate = false)
-    catch
-    end
-end
-
 module __meta
 
     import ..TestSimpleContent_struct
@@ -53,6 +41,21 @@ module __meta
     xsd_filename = "simple_content.xsd"
     XsdToStruct_version = "0.1.0"
 
+end
+
+import PrecompileTools
+import XmlStructLoader
+
+const __XSDTOSTRUCT_SAMPLE_XML__ = """<document><TestElement1>x</TestElement1></document>"""
+
+PrecompileTools.@compile_workload begin
+    try
+    __xsdtostruct_sample_path__ = tempname()
+    write(__xsdtostruct_sample_path__, __XSDTOSTRUCT_SAMPLE_XML__)
+    XmlStructLoader.load(__xsdtostruct_sample_path__, @__MODULE__; validate = false)
+    rm(__xsdtostruct_sample_path__; force = true)
+    catch
+    end
 end
 
 end

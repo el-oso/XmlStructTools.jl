@@ -33,18 +33,6 @@ using Reexport
 include("list_content_struct.jl")
 @reexport using .TestList_struct
 
-import PrecompileTools
-import XmlStructLoader
-
-const __XSDTOSTRUCT_SAMPLE_XML__ = """<document><TestElement1><Element_list_double>0</Element_list_double></TestElement1><TestElement2><Element_list_string>x</Element_list_string></TestElement2><TestElement3><Element_type4_list><Element_string>x</Element_string></Element_type4_list></TestElement3><TestElement5><Element_string>x</Element_string></TestElement5></document>"""
-
-PrecompileTools.@compile_workload begin
-    try
-        XmlStructLoader.load(IOBuffer(__XSDTOSTRUCT_SAMPLE_XML__), @__MODULE__; validate = false)
-    catch
-    end
-end
-
 module __meta
 
     import ..TestList_struct
@@ -53,6 +41,21 @@ module __meta
     xsd_filename = "list_content.xsd"
     XsdToStruct_version = "0.1.0"
 
+end
+
+import PrecompileTools
+import XmlStructLoader
+
+const __XSDTOSTRUCT_SAMPLE_XML__ = """<document><TestElement1><Element_list_double>0</Element_list_double></TestElement1><TestElement2><Element_list_string>x</Element_list_string></TestElement2><TestElement3><Element_type4_list><Element_string>x</Element_string></Element_type4_list></TestElement3><TestElement5><Element_string>x</Element_string></TestElement5></document>"""
+
+PrecompileTools.@compile_workload begin
+    try
+    __xsdtostruct_sample_path__ = tempname()
+    write(__xsdtostruct_sample_path__, __XSDTOSTRUCT_SAMPLE_XML__)
+    XmlStructLoader.load(__xsdtostruct_sample_path__, @__MODULE__; validate = false)
+    rm(__xsdtostruct_sample_path__; force = true)
+    catch
+    end
 end
 
 end

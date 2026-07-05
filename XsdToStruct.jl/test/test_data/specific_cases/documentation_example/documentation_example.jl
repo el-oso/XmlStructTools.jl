@@ -33,18 +33,6 @@ using Reexport
 include("documentation_example_struct.jl")
 @reexport using .DocumentationExample_struct
 
-import PrecompileTools
-import XmlStructLoader
-
-const __XSDTOSTRUCT_SAMPLE_XML__ = """<houseDescription><address><street>x</street><city>x</city><state>x</state><postalCode>0</postalCode></address><owner><name>x</name><address><street>x</street><city>x</city><state>x</state><postalCode>0</postalCode></address></owner><houseDescription><overallProperties><totalArea>0</totalArea><livableArea>0</livableArea></overallProperties><room><name>x</name><area>0</area></room></houseDescription></houseDescription>"""
-
-PrecompileTools.@compile_workload begin
-    try
-        XmlStructLoader.load(IOBuffer(__XSDTOSTRUCT_SAMPLE_XML__), @__MODULE__; validate = false)
-    catch
-    end
-end
-
 module __meta
 
     import ..DocumentationExample_struct
@@ -53,6 +41,21 @@ module __meta
     xsd_filename = "documentation_example.xsd"
     XsdToStruct_version = "0.1.0"
 
+end
+
+import PrecompileTools
+import XmlStructLoader
+
+const __XSDTOSTRUCT_SAMPLE_XML__ = """<houseDescription><address><street>x</street><city>x</city><state>x</state><postalCode>0</postalCode></address><owner><name>x</name><address><street>x</street><city>x</city><state>x</state><postalCode>0</postalCode></address></owner><houseDescription><overallProperties><totalArea>0</totalArea><livableArea>0</livableArea></overallProperties><room><name>x</name><area>0</area></room></houseDescription></houseDescription>"""
+
+PrecompileTools.@compile_workload begin
+    try
+    __xsdtostruct_sample_path__ = tempname()
+    write(__xsdtostruct_sample_path__, __XSDTOSTRUCT_SAMPLE_XML__)
+    XmlStructLoader.load(__xsdtostruct_sample_path__, @__MODULE__; validate = false)
+    rm(__xsdtostruct_sample_path__; force = true)
+    catch
+    end
 end
 
 end
