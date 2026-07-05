@@ -12,6 +12,8 @@ In order to use this module the following dependencies need to be installed:
     Dates
     TimeZones
 
+PrecompileTools and XmlStructLoader are required at load time (not just for calling load() yourself) - this module runs a load() warm-up during precompilation.
+
 This module can be used/import as follows:
 
 ```julia
