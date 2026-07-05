@@ -1,6 +1,8 @@
 module TestChoice_struct
 
 import AbstractXsdTypes
+using LazilyInitializedFields
+import XmlStructLoader
 
 """
 Example of a complex XSD type that uses a choice.
@@ -45,6 +47,8 @@ module TestComplexType2Types
 
 
     import AbstractXsdTypes
+    using LazilyInitializedFields
+    import XmlStructLoader
 
     using ..TestChoice_struct
 
@@ -144,12 +148,47 @@ end
 
 export TestComplexType5
 
-Base.@kwdef struct documentType <: AbstractXsdTypes.AbstractXSDComplex
-    TestElement1::TestComplexType1
-    TestElement2::TestComplexType2
-    TestElement5::TestComplexType5
-    __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
-    __validated::Bool = true
+@lazy struct documentType <: AbstractXsdTypes.AbstractXSDComplex
+    _node::Union{Nothing, XmlStructLoader.LazyNode}
+    @lazy TestElement1::TestComplexType1 = _init_TestElement1
+    @lazy TestElement2::TestComplexType2 = _init_TestElement2
+    @lazy TestElement5::TestComplexType5 = _init_TestElement5
+    __xml_attributes::Union{Nothing, Dict{String, String}}
+    __validated::Bool
+end
+
+function documentType(node::XmlStructLoader.LazyNode)
+    attribs = XmlStructLoader.lazy_attributes_dict(node)
+    return documentType(node, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, LazilyInitializedFields.uninit, isempty(attribs) ? nothing : attribs, false)
+end
+
+function documentType(__lazy_arg_1, __lazy_arg_2, __lazy_arg_3, __xml_attributes = nothing, __validated::Bool = true)
+    return documentType(nothing, convert(TestComplexType1, __lazy_arg_1), convert(TestComplexType2, __lazy_arg_2), convert(TestComplexType5, __lazy_arg_3), __xml_attributes, __validated)
+end
+
+function documentType(; TestElement1, TestElement2, TestElement5, __xml_attributes = nothing, __validated::Bool = true)
+    return documentType(TestElement1, TestElement2, TestElement5, __xml_attributes, __validated)
+end
+
+function _init_TestElement1(o::documentType)
+    child = XmlStructLoader.lazy_child_with_name(o._node, "TestElement1", false)
+    isnothing(child) && return nothing
+    owner = child.owner
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestComplexType1, nothing), @__MODULE__, false)
+end
+
+function _init_TestElement2(o::documentType)
+    child = XmlStructLoader.lazy_child_with_name(o._node, "TestElement2", false)
+    isnothing(child) && return nothing
+    owner = child.owner
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestComplexType2, nothing), @__MODULE__, false)
+end
+
+function _init_TestElement5(o::documentType)
+    child = XmlStructLoader.lazy_child_with_name(o._node, "TestElement5", false)
+    isnothing(child) && return nothing
+    owner = child.owner
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestComplexType5, nothing), @__MODULE__, false)
 end
 
 export documentType
