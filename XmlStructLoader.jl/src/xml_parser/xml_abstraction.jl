@@ -102,6 +102,23 @@ end
 XmlStructLoaderNode(node::Ptr{Cvoid}, type, parent::XmlStructLoaderNode) =
     XmlStructLoaderNode(node, type, parent, EMPTY_CHILDREN, nothing)
 
+"""
+    field_parent_node(node::Ptr{Cvoid}, parent_type)::XmlStructLoaderNode
+
+A minimal "parent" node carrying only `type` (all `get_default` reads off a parent - see below).
+For a lazily-loaded struct's per-field fallback to the eager construction path
+(`construct_xml_node_object`) on a single, standalone field: that call site needs a real parent
+*type* so `get_default` can look up this field's declared XSD default, but must not go through the
+`XmlStructLoaderNode(node, type, ::Nothing)` constructor above - that overload is the document
+tree-walk's entry point, and unconditionally resets the shared `_raw_parent_map` and recursively
+rebuilds a full subtree, neither of which is wanted (or safe) for a single already-lazily-resolved
+field. Calling this function (5 positional args) instead of the entry-point constructor (3 args)
+means normal Julia dispatch never reaches that overload at all.
+"""
+function field_parent_node(node::Ptr{Cvoid}, parent_type)::XmlStructLoaderNode
+    return XmlStructLoaderNode(node, parent_type, nothing, EMPTY_CHILDREN, nothing)
+end
+
 AbstractTrees.parent(node::XmlStructLoaderNode) = isnothing(node.parent) ? node.node : node.parent
 AbstractTrees.isroot(node::XmlStructLoaderNode) = isnothing(node.parent)
 AbstractTrees.children(node::XmlStructLoaderNode) = node.children

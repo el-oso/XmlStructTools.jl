@@ -34,6 +34,32 @@ end
     @test Base.invokelatest(getproperty, te1, :Element_double) == 100.22
 end
 
+@testitem "ReadOnAccess: a field whose type is a named simple type resolves correctly (regression)" setup=[LazyLoadTestHelpers] begin
+    using XsdToStruct
+    # Regression test for a bug found during Task 5 (self-review) and fixed directly: a lazy
+    # field's eager-construction fallback (for any field whose own type isn't itself lazy-capable -
+    # a named simple type, a choice-bearing complex type, or a zero-field complex type) built a
+    # standalone XmlStructLoaderNode with parent=nothing, and the eager path's get_default
+    # unconditionally dereferenced node.parent.type, throwing FieldError on first access. Fixed via
+    # XmlStructLoader.field_parent_node, which supplies a real parent type without going through
+    # the document-tree-walk entry point constructor. basic_types.xsd's TestElement2 (a named
+    # simple type, TestSimpleType1) exercises exactly this path.
+    xsd_path = joinpath(@__DIR__, "test_data", "generic_cases", "basic_types.xsd")
+    outdir = mktempdir()
+    generated_path = XsdToStruct.xsd_to_struct_module(xsd_path, outdir)
+    Base.include(Main, generated_path)
+    module_name = extract_generated_module_name(read(generated_path, String))
+    module_ref = Base.invokelatest(getproperty, Main, module_name)
+
+    xml_path = joinpath(@__DIR__, "test_data", "generic_cases", "basic_types.xml")
+    eager = Base.invokelatest(XmlStructLoader.load, xml_path, module_ref)
+    lazy = Base.invokelatest(XmlStructLoader.load, xml_path, module_ref; load_strategy = XmlStructLoader.ReadOnAccess(), validate = false)
+
+    eager_value = Base.invokelatest(getproperty, eager, :TestElement2)
+    lazy_value = Base.invokelatest(getproperty, lazy, :TestElement2)
+    @test lazy_value == eager_value
+end
+
 @testitem "ReadOnAccess with validate=true raises ArgumentError before parsing" setup=[LazyLoadTestHelpers] begin
     using XsdToStruct
     xsd_path = joinpath(@__DIR__, "test_data", "generic_cases", "basic_types.xsd")

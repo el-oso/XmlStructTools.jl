@@ -174,21 +174,24 @@ function _init_TestElement1(o::documentType)
     child = XmlStructLoader.lazy_child_with_name(o._node, "TestElement1", false)
     isnothing(child) && return nothing
     owner = child.owner
-    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestComplexType1, nothing), @__MODULE__, false)
+    parent_node = XmlStructLoader.field_parent_node(o._node.ptr, typeof(o))
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestComplexType1, parent_node), @__MODULE__, false)
 end
 
 function _init_TestElement2(o::documentType)
     child = XmlStructLoader.lazy_child_with_name(o._node, "TestElement2", false)
     isnothing(child) && return nothing
     owner = child.owner
-    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestComplexType2, nothing), @__MODULE__, false)
+    parent_node = XmlStructLoader.field_parent_node(o._node.ptr, typeof(o))
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestComplexType2, parent_node), @__MODULE__, false)
 end
 
 function _init_TestElement5(o::documentType)
     child = XmlStructLoader.lazy_child_with_name(o._node, "TestElement5", false)
     isnothing(child) && return nothing
     owner = child.owner
-    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestComplexType5, nothing), @__MODULE__, false)
+    parent_node = XmlStructLoader.field_parent_node(o._node.ptr, typeof(o))
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestComplexType5, parent_node), @__MODULE__, false)
 end
 
 export documentType

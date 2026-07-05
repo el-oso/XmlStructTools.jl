@@ -504,9 +504,17 @@ function generate_scalar_or_node_accessor_body(
         push!(lines, "    return $full_field_type(child)")
     else
         push!(lines, "    owner = child.owner")
+        # A real parent *type* is required here (not `nothing`) so the eager path's get_default can
+        # look up this field's declared XSD default - XmlStructLoader.field_parent_node builds a
+        # minimal one without going through the document-tree-walk entry point constructor (see its
+        # own docstring for why that entry point isn't safe to call from a single-field fallback).
         push!(
             lines,
-            "    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, $full_field_type, nothing), @__MODULE__, false)",
+            "    parent_node = XmlStructLoader.field_parent_node(o._node.ptr, typeof(o))",
+        )
+        push!(
+            lines,
+            "    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, $full_field_type, parent_node), @__MODULE__, false)",
         )
     end
     return join(lines, "\n")
@@ -526,7 +534,9 @@ function generate_vector_accessor_body(
     elseif lazy_capable_child
         "$full_field_type(child)"
     else
-        "(let owner = child.owner; GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, $full_field_type, nothing), @__MODULE__, false); end)"
+        # Same field_parent_node requirement as the non-vector case above - a real parent type,
+        # not `nothing`, so the eager fallback's get_default doesn't crash on a missing parent.
+        "(let owner = child.owner, parent_node = XmlStructLoader.field_parent_node(o._node.ptr, typeof(o)); GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, $full_field_type, parent_node), @__MODULE__, false); end)"
     end
     return "    return [$element_expr for child in XmlStructLoader.lazy_children_with_name(o._node, \"$element_name\")]"
 end

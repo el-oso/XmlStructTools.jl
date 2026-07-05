@@ -152,14 +152,16 @@ function _init_TestDoubleRestrictedDouble(o::documentType)
     child = XmlStructLoader.lazy_child_with_name(o._node, "TestDoubleRestrictedDouble", false)
     isnothing(child) && return nothing
     owner = child.owner
-    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestDoubleRestrictedDouble, nothing), @__MODULE__, false)
+    parent_node = XmlStructLoader.field_parent_node(o._node.ptr, typeof(o))
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, TestDoubleRestrictedDouble, parent_node), @__MODULE__, false)
 end
 
 function _init_UnionType(o::documentType)
     child = XmlStructLoader.lazy_child_with_name(o._node, "UnionType", false)
     isnothing(child) && return nothing
     owner = child.owner
-    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, UnionType, nothing), @__MODULE__, false)
+    parent_node = XmlStructLoader.field_parent_node(o._node.ptr, typeof(o))
+    return GC.@preserve owner XmlStructLoader.construct_xml_node_object(XmlStructLoader.XmlStructLoaderNode(child.ptr, UnionType, parent_node), @__MODULE__, false)
 end
 
 export documentType
