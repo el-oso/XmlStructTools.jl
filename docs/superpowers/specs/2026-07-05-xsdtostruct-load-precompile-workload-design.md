@@ -67,19 +67,40 @@ wrongly ruled out `@compile_workload` — that mistake, and the correction, are 
    first-`load()` time. Once generated modules are known to be embedded in real packages, this stops
    being the best option (see the three-way comparison below).
 
-**Decisive three-way comparison**, once corrected: a toy wrapper package (`ToySchemaPkg`, its own
-`Project.toml`/UUID) `include()`-ing the generated struct file, properly precompiled, then measured
-cold in a **fresh separate process**:
+**Three-way comparison, corrected after a measurement mistake.** The first pass at this comparison
+(a toy wrapper package, `ToySchemaPkg`, measured cold once per variant) reported no workload 3.33s,
+eager call 2.70s, `@compile_workload` 1.65s, and that (wrong) 1.65s number drove the initial choice
+of mechanism. Task 3's implementer later measured the real feature end-to-end with 3 repeats per
+side and got a much smaller `@compile_workload` win (~19%, not ~50%) — a large enough gap from the
+design-time number to warrant re-investigating rather than dismissing as normal noise, per this
+project's standing "don't guess, measure" rule. Re-ran the full three-way comparison with proper
+repetition (3 samples per variant, fresh process each, same real generated `basic_types` code, same
+real `XmlStructLoader.jl`, both a flat and a nested module-scoping structure to rule out that as a
+variable):
 
-| Mechanism (all embedded in the same real wrapper package) | Cold `load()` time |
+| Mechanism (real generated code, real precompiled wrapper package, fresh process, 3 repeats) | Cold `load()` time |
 |---|---|
-| No workload at all | 3.33s |
-| Plain eager `try/catch` call (option 4 above) | 2.70s |
-| `PrecompileTools.@compile_workload` | **1.65s** |
+| No workload at all | 3.30 / 3.41 / 3.31s |
+| Plain eager `try/catch` call, embedded in a real precompiling package | 3.32 / 3.36 / 3.39s — **no improvement** |
+| `PrecompileTools.@compile_workload` | 2.72 / 2.79 / 2.78s (flat module structure) and 2.78 / 2.78 / 2.78s (nested, matching the real generated structure) — **~17-20% improvement, consistent both ways** |
 
-`@compile_workload` wins decisively — it persists across every future process via the pkgimage
-(the tax is paid once, at package build/precompile time, not on every run), and it captures more of
-the compile tax than the plain eager call even measured cold. **This is the chosen mechanism.**
+The original single-shot 1.65s measurement does not reproduce and should not be trusted — it was
+noise, not a real number, and the mistake was measuring a design-decision-driving number without
+repetition. The corrected numbers still support the same *decision* (`@compile_workload` beats a
+plain eager call, even one embedded in a real precompiling package — ordinary top-level code
+executed during precompilation does not reliably get cross-package runtime-dispatched
+specializations cached and reused, exactly matching `@compile_workload`'s own documented rationale
+for existing) but with a smaller, more modest *magnitude* than first reported. **This is still the
+chosen mechanism** — the direction was right, the size of the win was overstated.
+
+A specific alternative hypothesis (that `XmlStructLoader.load`'s `Base.@invokelatest` — needed for
+world-age safety after a runtime `include()` — was defeating specialization reuse and explained the
+gap) was raised during this investigation and directly tested with an isolated, minimal
+reproduction (a toy library function called both via `@invokelatest` and directly, each wrapped in
+its own `@compile_workload`): both variants showed identical `--trace-compile` counts during the
+real call (2 lines each, vs. 5 with no workload at all) — `@invokelatest` does **not** measurably
+defeat reuse in this isolated case. Ruled out as the explanation for the gap; the gap was fully
+explained by the original number being an unrepeated single sample.
 
 ## Key unlock: `validate=false`
 
