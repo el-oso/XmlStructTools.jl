@@ -1,4 +1,4 @@
-# XsdToStruct: embed an eager `XmlStructLoader.load` warm-up in generated modules
+# XsdToStruct: embed a `PrecompileTools.@compile_workload` in generated modules
 
 ## Context
 
@@ -18,28 +18,39 @@ other ~86% is `XmlStructLoader`'s generic algorithm (`type_in_module`, `get_base
 types — which only happens by actually running a document through `load()`.
 
 **Goal**: every module `xsd_to_struct_module` generates should exercise `XmlStructLoader.load`
-against a sample instance of that specific schema as soon as it's `include()`d, so the expensive
-specialization is already compiled by the time a real caller loads real data. The burden is on
-`XsdToStruct.jl` — no caller-supplied sample XML, no opt-in flag.
+against a sample instance of that specific schema during precompilation, so the expensive
+specialization is already compiled and cached by the time a real caller loads real data. The burden
+is on `XsdToStruct.jl` — no caller-supplied sample XML, no opt-in flag. This relies on the generated
+module being embedded inside a real, separately-installed package (its own `Project.toml`/UUID) —
+confirmed to be how these generated modules are generally consumed, not the loose
+`include("path/to/file.jl")` script pattern the existing generated docstring shows as an example.
 
-## Mechanism: eager real call, not `@compile_workload`
+## Mechanism: `PrecompileTools.@compile_workload`
 
-Three mechanisms were investigated and empirically tested (fresh processes, real measurements —
-not reasoned from memory) before settling on this design:
+Four mechanisms were investigated and empirically tested (fresh processes, real measurements — not
+reasoned from memory) before settling on this design. The first pass through this investigation
+wrongly ruled out `@compile_workload` — that mistake, and the correction, are worth recording:
 
-1. **`PrecompileTools.@compile_workload`** — read the actual source
-   (`PrecompileTools/src/workloads.jl`): its body only runs when
-   `ccall(:jl_generating_output, Cint, ()) == 1`, i.e. only during real package precompilation of
-   an installed package with its own `Project.toml`/UUID. Confirmed directly: a `@compile_workload`
+1. **`PrecompileTools.@compile_workload`, tested against a bare `include()`'d script** — read the
+   actual source (`PrecompileTools/src/workloads.jl`): its body only runs when
+   `ccall(:jl_generating_output, Cint, ()) == 1`, i.e. only during real package precompilation of an
+   installed package with its own `Project.toml`/UUID. Confirmed directly: a `@compile_workload`
    block placed in a plain script printed nothing and never executed — `jl_generating_output` was
-   `0`. Since `xsd_to_struct_module`'s output is documented and used as a loose `.jl` file via
-   plain `include("path/to/file.jl"); using .ModuleName` (never an installed package), embedding
-   `@compile_workload` in it would be **inert dead code** for the standard usage pattern.
+   `0`. This is correct **for that scenario** — but it isn't the real one. `xsd_to_struct_module`'s
+   output is generally `include()`d from inside *another, real, already-installed package's own
+   source* (confirmed after the fact) — and a generated module `include()`d that way is a genuine
+   submodule of that enclosing package, precompiled together with it. Verified directly with a toy
+   wrapper package (its own `Project.toml`/UUID, `include("generated.jl")` inside its own module):
+   `jl_generating_output == 1` during the wrapper's real precompilation, and the `@compile_workload`
+   block's body ran. The earlier "inert dead code" conclusion only holds for the bare-script/REPL
+   usage pattern, not the actual common one — worth remembering as a caution about generalizing an
+   empirical result to a usage pattern that wasn't the one tested.
 2. **Signature-only `Base.precompile(f, argtypes)`** — measured directly: `precompile(load, (String,
    String))` followed by a real `load()` call showed **no improvement** (3.52s vs. baseline 3.56s).
    `precompile()` only forces compilation along statically-inferable call paths; `load`'s expensive
    part is driven by runtime content (which tag name maps to which concrete struct type), which the
-   compiler cannot discover from `load`'s own argument types alone.
+   compiler cannot discover from `load`'s own argument types alone. Still ruled out — this finding
+   doesn't depend on the include-context correction above.
 3. **Harvest via `--trace-compile`, replay the captured `precompile()` statements** — this genuinely
    is what `--trace-compile=<file>` does: running a real `load()` call under it emits literal,
    pasteable `precompile(Tuple{...})` lines for every method actually compiled, including the deep,
@@ -48,25 +59,27 @@ not reasoned from memory) before settling on this design:
    without error (the rest reference things like `Reexport` that aren't in scope the same way
    outside their original call context), and a real `load()` call afterward still took 2.03s — most
    of the compile tax remained. Total time (replay + real call) was ~3.55s, essentially the same as
-   doing nothing.
+   doing nothing. Still ruled out.
+4. **A plain eager `try/catch` call, no macro** — the first design settled on, before the
+   include-context correction. Measured (bare-script scenario): first call 3.24s, a **second** real
+   `load()` call in the *same process* dropped to 0.0017s. Good within one process, but it doesn't
+   persist to a fresh process — every new process re-pays the tax at `include()` time instead of at
+   first-`load()` time. Once generated modules are known to be embedded in real packages, this stops
+   being the best option (see the three-way comparison below).
 
-**Chosen mechanism**: a plain eager call, run as ordinary top-level code the moment the generated
-module is `include()`d — no `PrecompileTools`, no `@compile_workload`, no statement harvesting:
+**Decisive three-way comparison**, once corrected: a toy wrapper package (`ToySchemaPkg`, its own
+`Project.toml`/UUID) `include()`-ing the generated struct file, properly precompiled, then measured
+cold in a **fresh separate process**:
 
-```julia
-try
-    XmlStructLoader.load(IOBuffer(SAMPLE_XML), @__MODULE__; validate = false)
-catch
-end
-```
+| Mechanism (all embedded in the same real wrapper package) | Cold `load()` time |
+|---|---|
+| No workload at all | 3.33s |
+| Plain eager `try/catch` call (option 4 above) | 2.70s |
+| `PrecompileTools.@compile_workload` | **1.65s** |
 
-Measured directly: first (eager warm-up) `load()` call took 3.24s (full compile tax, as expected);
-a **second** real `load()` call in the same process took **0.0017s** — essentially free. This is a
-strictly better, and far simpler, outcome than either alternative above. It does not reduce total
-compile work, and it does not persist across separate `julia` process restarts (unlike real package
-precompilation) — the cost simply moves from "your first real `load()` call is slow" to "the
-`include()` of the generated module is slow" — but by the time calling code reaches its own first
-`load()`, the expensive specialization is already done, in this process.
+`@compile_workload` wins decisively — it persists across every future process via the pkgimage
+(the tax is paid once, at package build/precompile time, not on every run), and it captures more of
+the compile tax than the plain eager call even measured cold. **This is the chosen mechanism.**
 
 ## Key unlock: `validate=false`
 
@@ -113,12 +126,14 @@ edge cases is handled at the next layer down:
 
 ## Failure handling
 
-The emitted eager call is wrapped in a silent `try/catch`:
+The workload's `load()` call is wrapped in a silent `try/catch`:
 
 ```julia
-try
-    XmlStructLoader.load(IOBuffer(SAMPLE_XML), @__MODULE__; validate = false)
-catch
+PrecompileTools.@compile_workload begin
+    try
+        XmlStructLoader.load(IOBuffer(SAMPLE_XML), @__MODULE__; validate = false)
+    catch
+    end
 end
 ```
 
@@ -132,20 +147,19 @@ coverage, not a broken module.
 ## New dependency footprint
 
 Every generated module's top-level file gains, unconditionally:
+- `import PrecompileTools` (or `using PrecompileTools: @compile_workload`)
 - `import XmlStructLoader` (qualified access only — `XmlStructLoader.load(...)` — not `using`,
   matching this codebase's existing convention of avoiding export-name collisions, e.g.
   `XmlStructLoader.jl`'s own `import XsdToStruct`)
 
-No `PrecompileTools` dependency is needed — the eager call is plain top-level code, not a macro.
-
 This applies even to callers who never call `load()` themselves on the generated module — accepted
 tradeoff, since there's no opt-out flag. The generated docstring's existing "dependencies needed"
-list (`xsd_module_builder_top.jl`'s `write_docstring_part`) gets `XmlStructLoader` appended
-alongside the existing `AbstractXsdTypes`/`Reexport` entries.
+list (`xsd_module_builder_top.jl`'s `write_docstring_part`) gets `PrecompileTools` and
+`XmlStructLoader` appended alongside the existing `AbstractXsdTypes`/`Reexport` entries.
 
-`XsdToStruct.jl`'s own `Project.toml` is **not** affected — it doesn't itself `using` this package,
-it only emits text that references it. The generated module is what needs it available in whatever
-environment it's `include()`d into.
+`XsdToStruct.jl`'s own `Project.toml` is **not** affected — it doesn't itself `using` these
+packages, it only emits text that references them. The generated module is what needs them
+available in whatever environment/enclosing package it's `include()`d into.
 
 ## Where this lives
 
@@ -155,21 +169,24 @@ existing one-file-per-concern convention (`xsd_module_builder_top.jl`, `_struct.
 - `synthesize_sample_xml(root_field, xsd_module_builder)::String` — the recursive tree-walk above.
 - A `write_precompile_workload_part` function, wired into `write_top_module_to_io`
   (`xsd_module_builder_top.jl`) alongside the existing `write_struct_module_part` /
-  `write_meta_module_part` calls, emitting the `import XmlStructLoader` line, the
-  `const SAMPLE_XML = """..."""` literal, and the eager `try/catch` call itself.
+  `write_meta_module_part` calls, emitting the `import`s, the `const SAMPLE_XML = """..."""`
+  literal, and the `@compile_workload` block itself.
 
 ## Testing / verification
 
 - **Correctness**: generate a module from an existing fixture (e.g. `basic_types.xsd`) into a
-  tempdir, confirm the generated file contains the eager `load()` call and the embedded sample, and
-  confirm a subsequent real `load()` call against real fixture XML still returns correct values
-  (i.e. running the eager call at include-time leaves no contaminating state for a later real call).
+  tempdir, confirm the generated file contains `@compile_workload` and the embedded sample, and
+  confirm a subsequent real `load()` call against real fixture XML still returns correct values.
+  Note that `@compile_workload`'s body does **not** run under a plain `include()` at test time (it
+  requires real package precompilation, `jl_generating_output == 1`) — a test that just
+  `include()`s the generated file exercises the surrounding code (struct definitions, the sample
+  string, the file being syntactically valid) but not the workload body itself. Verifying the
+  workload actually fires and helps requires the toy-wrapper-package harness (own `Project.toml`,
+  real precompilation via `using`) used during design, not a bare `include()`.
 - **Performance**: same fresh-process A/B methodology already used to validate
   `XsdToStruct.jl`'s own `@compile_workload` (git-stash before/after, single cold `@elapsed` per
-  process, not a warm Chairmarks loop) — measure `XmlStructLoader.load` cold-call time (i.e. the
-  *first* real `load()` call a caller makes, right after `include()`-ing the generated module)
-  before and after this change, on at least `basic_types` and one larger/nested/choice-bearing
-  fixture (e.g. `documentation_example` or `choice_element`). The `include()` itself should get
-  slower (it now does the real work eagerly); the first real `load()` call afterward should get
-  dramatically faster — that's the actual deliverable, not a reduction in total work.
+  process, not a warm Chairmarks loop) — measure `XmlStructLoader.load` cold-call time against a
+  freshly generated module, embedded in a real wrapper package and properly precompiled, before and
+  after this change, on at least `basic_types` and one larger/nested/choice-bearing fixture (e.g.
+  `documentation_example` or `choice_element`).
 - Run the full 5-package test suite as the final gate (per this project's standing convention).
