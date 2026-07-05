@@ -25,5 +25,6 @@ include("test_xsd_reader.jl")
 include("test_xsd_module_generator.jl")
 include("test_generated_module.jl")
 include("test_real_world_schemas.jl")
+include("test_sample_xml_synthesis.jl")
 
 end
