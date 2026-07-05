@@ -17,8 +17,10 @@ end
         @test occursin("import XmlStructLoader", generated_source)
         @test occursin("PrecompileTools.@compile_workload", generated_source)
         @test occursin("validate = false", generated_source)
-        @test occursin("try", generated_source)
-        @test occursin("catch", generated_source)
+        # the workload's own try/catch specifically (indented one level under the workload block),
+        # not just any occurrence of the words "try"/"catch" anywhere in the generated file
+        @test occursin("    try\n", generated_source)
+        @test occursin("    catch\n", generated_source)
 
         # @compile_workload's body only runs during real package precompilation, never under a
         # plain include() — so this include() only exercises the surrounding code (struct

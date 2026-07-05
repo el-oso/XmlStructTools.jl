@@ -61,6 +61,14 @@ function write_docstring_part(xsd_module_builder::XSDStructModuleBuilderType)::N
     end
     writeln(xsd_module_builder, IOTop)
 
+    writeln(
+        xsd_module_builder,
+        IOTop,
+        "PrecompileTools and XmlStructLoader are required at load time (not just for calling " *
+        "load() yourself) - this module runs a load() warm-up during precompilation.",
+    )
+    writeln(xsd_module_builder, IOTop)
+
     writeln(xsd_module_builder, IOTop, "This module can be used/import as follows:")
     writeln(xsd_module_builder, IOTop)
 
@@ -95,11 +103,11 @@ function write_struct_module_part(xsd_module_builder::XSDStructModuleBuilderType
 end
 
 function write_precompile_workload_part(xsd_module_builder::XSDStructModuleBuilderType)::Nothing
-    sample_xml = synthesize_sample_xml(xsd_module_builder)
-    isnothing(sample_xml) && return nothing
-
     writeln(xsd_module_builder, IOTop, "import PrecompileTools")
     writeln(xsd_module_builder, IOTop, "import XmlStructLoader")
+
+    sample_xml = synthesize_sample_xml(xsd_module_builder)
+    isnothing(sample_xml) && return nothing
 
     write(xsd_module_builder, IOTop, "\n")
 

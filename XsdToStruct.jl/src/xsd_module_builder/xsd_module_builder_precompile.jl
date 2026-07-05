@@ -43,9 +43,9 @@ function sample_xml_for_type(
         return sample_xml_for_type(node.field.julia_type, node.field.julia_type, xsd_module_builder)
     else
         # UnionTreeNode, ExtensionTreeNode, or any future node kind — not handled in v1, treat as
-        # unresolvable so the caller omits the field. Safe: the generated module's eager warm-up
-        # call wraps the actual load() call in a try/catch, so an incomplete sample instance only
-        # forfeits the warm-up for this one schema, never breaks it.
+        # unresolvable so the caller omits the field. Safe: the generated module's
+        # @compile_workload block wraps the actual load() call in a try/catch, so an incomplete
+        # sample instance only forfeits the warm-up for this one schema, never breaks it.
         return nothing
     end
 end
@@ -81,7 +81,7 @@ end
     synthesize_sample_xml(xsd_module_builder::XSDStructModuleBuilderType)::Union{Nothing,String}
 
 Builds a minimal, type-parseable (not restriction-satisfying) XML instance for the schema's root
-type, for use in the generated module's own eager `load()` warm-up call. Must be called after
+type, for use in the generated module's own `@compile_workload` warm-up block. Must be called after
 `write_struct_module_to_io` has populated `xsd_module_builder.defined_nodes` — the type lookups
 here depend on every complex/simple/union type in the schema already being registered there.
 
