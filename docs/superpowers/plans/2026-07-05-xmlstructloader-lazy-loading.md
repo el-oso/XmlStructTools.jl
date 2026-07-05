@@ -133,9 +133,51 @@ package that adds another `*_tests.jl` file is picked up automatically, and none
 Read the current `XmlStructLoader.jl/test/runtests.jl` first (it currently calls
 `XmlStructLoaderTests.runtests()`). Add, after that call:
 ```julia
-using ReTestItems
+using ReTestItems, XmlStructLoader
 ReTestItems.runtests(XmlStructLoader; testitem_timeout = 600)
 ```
+Note the `using XmlStructLoader` — `runtests.jl` runs in `Main`, and the classic suite's own
+`using XmlStructLoader` (inside `XmlStructLoaderTests.jl`) is scoped to that submodule, not `Main`,
+so without this `runtests.jl` itself can't reference the `XmlStructLoader` name.
+
+**Verified end-to-end (this exact recipe, confirmed working via a real `Pkg.test()` run, not
+assumed from documentation alone) — three more things were needed beyond the plan's original
+draft:**
+1. **`Test` (stdlib) and any package a new `@testitem` references directly must be explicit
+   entries in `test/Project.toml`**, even if already a dependency of the main package. ReTestItems'
+   worker-process environment doesn't inherit them implicitly. For this task: add `Test` (via
+   `Pkg.add("Test")` from `test/`) and `XmlStructPugixml` (via `Pkg.develop(path=...)`, since it's
+   an unregistered monorepo package — never hand-write its UUID).
+2. **Any pre-existing classic (`@testset`-based) file matching `*_tests.jl`/`*_test.jl` breaks the
+   whole `ReTestItems.runtests(XmlStructLoader)` call** with `"Test files must only include
+   @testitem and @testsetup calls"` — ReTestItems scans the *entire* package tree by that naming
+   glob and does not tolerate a non-`@testitem` file matching it, regardless of `shouldrun`/`name`
+   filters (confirmed by reading `ReTestItems.jl`'s own filtering source - those filters only
+   select *which* `@testitem`s run inside an already-valid file, not which files get scanned).
+   `XmlStructLoader.jl` has exactly two such files:
+   `test/XmlStructLoaderGenericTests/load_tests.jl` and `check_tests.jl`. Rename them to
+   `load_generic.jl`/`check_generic.jl` (content unchanged) and update the one place that
+   `include()`s them (`XmlStructLoaderGenericTests.jl`).
+3. **A directory-path or file-path argument to `ReTestItems.runtests` does not reliably work inside
+   `Pkg.test()`'s sandboxed environment** (`ERROR: trying to activate test environment of an
+   unnamed project`) — only the module form, `ReTestItems.runtests(PackageModule; ...)`, is robust
+   there. Don't try to route around a naming collision by scoping to a subdirectory path instead of
+   renaming the colliding files — it doesn't work in this environment.
+
+**This same file-naming collision check must be repeated for every other package this plan touches,
+before wiring ReTestItems into it** (checked now, so later tasks don't rediscover this the hard
+way): `grep -rL "@testitem\|@testsetup" $(find <pkg>/test -iname "*_tests.jl" -o -iname
+"*_test.jl")` for each candidate file. Result: **`AbstractXsdTypes.jl` (Task 2) has eight
+colliding classic files** — `test/type_tests.jl`,
+`test/mathematics_functions_tests/mathematics_functions_tests.jl`,
+`test/restriction_tests/restricted_strings_tests.jl`,
+`test/restriction_tests/restricted_signed_tests.jl`, `test/restriction_tests/restriction_tests.jl`,
+`test/restriction_tests/restricted_unsigned_tests.jl`,
+`test/restriction_tests/restricted_float_tests.jl`, `test/conversion_tests/conversion_tests.jl` —
+all need the same treatment (rename to a non-colliding suffix, e.g. `_testset.jl`, and update
+whatever `include()`s each one) as part of Task 2's Step 4, before `ReTestItems.runtests(AbstractXsdTypes)`
+will work. `XsdToStruct.jl` and `XmlStructWriter.jl` (Tasks 3/4/6/7) have **no** colliding files —
+their ReTestItems wiring can follow the simple form directly.
 
 - [ ] **Step 5: Implement `PugixmlDocumentHandle` and `LazyNode`**
 
@@ -376,12 +418,38 @@ ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
 LazilyInitializedFields = "0e77f7df-68c5-4e49-93ce-4cd80f5598bf"
 ```
 
-- [ ] **Step 4: Wire ReTestItems into `runtests.jl`**
+- [ ] **Step 4: Rename the 8 colliding classic test files, then wire ReTestItems into `runtests.jl`**
 
-Same correction as Task 1 Step 4 (`name` filters test-item titles, not file names - no per-file
-scoping needed or wanted). Appended to `AbstractXsdTypes.jl/test/runtests.jl`, once:
+**This package has 8 pre-existing classic (`@testset`-based) files that collide with ReTestItems'
+`*_tests.jl` auto-discovery glob** (verified directly, not assumed — see Task 1 Step 4's note on
+why this breaks the whole `runtests(AbstractXsdTypes)` call with `"Test files must only include
+@testitem and @testsetup calls"`, regardless of any `name`/`tags` filter). Rename each one to a
+`_testset.jl` suffix (content unchanged) and update whatever `include()`s it:
+- `test/type_tests.jl` → `test/type_testset.jl`
+- `test/mathematics_functions_tests/mathematics_functions_tests.jl` →
+  `test/mathematics_functions_tests/mathematics_functions_testset.jl`
+- `test/restriction_tests/restricted_strings_tests.jl` →
+  `test/restriction_tests/restricted_strings_testset.jl`
+- `test/restriction_tests/restricted_signed_tests.jl` →
+  `test/restriction_tests/restricted_signed_testset.jl`
+- `test/restriction_tests/restriction_tests.jl` → `test/restriction_tests/restriction_testset.jl`
+- `test/restriction_tests/restricted_unsigned_tests.jl` →
+  `test/restriction_tests/restricted_unsigned_testset.jl`
+- `test/restriction_tests/restricted_float_tests.jl` →
+  `test/restriction_tests/restricted_float_testset.jl`
+- `test/conversion_tests/conversion_tests.jl` → `test/conversion_tests/conversion_testset.jl`
+
+Find every `include(...)` referencing the old names with
+`grep -rn "type_tests\|mathematics_functions_tests\|restricted_strings_tests\|restricted_signed_tests\|restriction_tests\b\|restricted_unsigned_tests\|restricted_float_tests\|conversion_tests\b" test/*.jl`
+and update each to the renamed target — do not skip any, a missed one breaks the classic suite
+with a file-not-found error at test time (this exact mistake was made and caught during Task 1).
+
+Then, same correction as Task 1 Step 4 (`name` filters test-item titles, not file names — no
+per-file scoping needed or wanted), plus `Test` as an explicit `test/Project.toml` dependency
+(same reason as Task 1 — confirm via `Pkg.add("Test")` from `test/`, not assumed already present).
+Appended to `AbstractXsdTypes.jl/test/runtests.jl`, once:
 ```julia
-using ReTestItems
+using ReTestItems, AbstractXsdTypes
 ReTestItems.runtests(AbstractXsdTypes; testitem_timeout = 300)
 ```
 
@@ -553,9 +621,12 @@ Same pattern as Tasks 1-2:
 ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
 ```
 ```julia
-# appended to XsdToStruct.jl/test/runtests.jl - same correction as Task 1 Step 4: one
-# unscoped call, ReTestItems auto-discovers every *_tests.jl file in the directory tree
-using ReTestItems
+# appended to XsdToStruct.jl/test/runtests.jl - same correction and verified recipe as Task 1
+# Step 4: one unscoped call, ReTestItems auto-discovers every *_tests.jl file in the directory
+# tree; using X is required before referencing the module name; confirm Test is an explicit
+# test/Project.toml dependency (Pkg.add("Test") from test/ if not already present). This package
+# has no pre-existing classic-file naming collision (checked during Task 1's investigation).
+using ReTestItems, XsdToStruct
 ReTestItems.runtests(XsdToStruct; testitem_timeout = 300)
 ```
 
@@ -1513,8 +1584,12 @@ XmlStructLoader = "1bf1c528-19f0-4e43-b24f-ad91d84ffbf7"
 XsdToStruct = "3ae7ce5f-3138-4ab9-addd-ceedf56009da"
 ```
 ```julia
-# appended to XmlStructWriter.jl/test/runtests.jl - same correction as Task 1 Step 4
-using ReTestItems
+# appended to XmlStructWriter.jl/test/runtests.jl - same correction and verified recipe as Task 1
+# Step 4 (using X before referencing the module name is required; confirm Test is an explicit
+# test/Project.toml dependency, adding it via Pkg.add("Test") from test/ if not). This package has
+# no pre-existing classic-file naming collision (checked during Task 1's investigation), so no
+# renames are needed here.
+using ReTestItems, XmlStructWriter
 ReTestItems.runtests(XmlStructWriter; testitem_timeout = 300)
 ```
 
