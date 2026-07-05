@@ -33,18 +33,6 @@ using Reexport
 include("type_in_element_struct.jl")
 @reexport using .TestTypeInElement_struct
 
-import PrecompileTools
-import XmlStructLoader
-
-const __XSDTOSTRUCT_SAMPLE_XML__ = """<document><TestSimple2>x</TestSimple2><TestComplex1><Element_string>x</Element_string><Element_double>0</Element_double><Element_boolean>false</Element_boolean></TestComplex1><TestComplex2>x</TestComplex2><TestComplex3>0</TestComplex3></document>"""
-
-PrecompileTools.@compile_workload begin
-    try
-        XmlStructLoader.load(IOBuffer(__XSDTOSTRUCT_SAMPLE_XML__), @__MODULE__; validate = false)
-    catch
-    end
-end
-
 module __meta
 
     import ..TestTypeInElement_struct
@@ -53,6 +41,21 @@ module __meta
     xsd_filename = "type_in_element.xsd"
     XsdToStruct_version = "0.1.0"
 
+end
+
+import PrecompileTools
+import XmlStructLoader
+
+const __XSDTOSTRUCT_SAMPLE_XML__ = """<document><TestSimple2>x</TestSimple2><TestComplex1><Element_string>x</Element_string><Element_double>0</Element_double><Element_boolean>false</Element_boolean></TestComplex1><TestComplex2>x</TestComplex2><TestComplex3>0</TestComplex3></document>"""
+
+PrecompileTools.@compile_workload begin
+    try
+    __xsdtostruct_sample_path__ = tempname()
+    write(__xsdtostruct_sample_path__, __XSDTOSTRUCT_SAMPLE_XML__)
+    XmlStructLoader.load(__xsdtostruct_sample_path__, @__MODULE__; validate = false)
+    rm(__xsdtostruct_sample_path__; force = true)
+    catch
+    end
 end
 
 end

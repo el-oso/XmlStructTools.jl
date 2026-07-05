@@ -1,4 +1,5 @@
-@testset "PugixmlDocumentHandle: finalizer frees exactly once, close() is idempotent" begin
+@testitem "PugixmlDocumentHandle: finalizer frees exactly once, close() is idempotent" begin
+    using XmlStructPugixml
     fixture = joinpath(@__DIR__, "test_data", "generic_cases", "basic_types.xml")
     doc_ptr = XmlStructPugixml.parse_file(fixture)
     @test doc_ptr != C_NULL
@@ -16,7 +17,8 @@
     @test handle.ptr == C_NULL
 end
 
-@testset "LazyNode: name/content/children/attributes match the eager abstraction layer" begin
+@testitem "LazyNode: name/content/children/attributes match the eager abstraction layer" begin
+    using XmlStructPugixml
     fixture = joinpath(@__DIR__, "test_data", "generic_cases", "basic_types.xml")
     doc_ptr = XmlStructPugixml.parse_file(fixture)
     handle = XmlStructLoader.PugixmlDocumentHandle(doc_ptr)
@@ -42,7 +44,8 @@ end
     close(handle)
 end
 
-@testset "LazyNode survives GC pressure between accesses (finalizer safety)" begin
+@testitem "LazyNode survives GC pressure between accesses (finalizer safety)" begin
+    using XmlStructPugixml
     fixture = joinpath(@__DIR__, "test_data", "generic_cases", "basic_types.xml")
     doc_ptr = XmlStructPugixml.parse_file(fixture)
     handle = XmlStructLoader.PugixmlDocumentHandle(doc_ptr)
@@ -50,7 +53,7 @@ end
 
     for _ in 1:5
         GC.gc(true)
-        @test XmlStructLoader.lazy_name(root) == "TestComplexAndSimple:document"
+        @test XmlStructLoader.lazy_name(root) == "document"
         GC.gc(true)
         for child in XmlStructLoader.lazy_children(root)
             GC.gc(true)

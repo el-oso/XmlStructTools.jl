@@ -33,18 +33,6 @@ using Reexport
 include("decimal_restrictions_struct.jl")
 @reexport using .TestDecimalRestrictions_struct
 
-import PrecompileTools
-import XmlStructLoader
-
-const __XSDTOSTRUCT_SAMPLE_XML__ = """<document><TestElement1>0</TestElement1><TestElement2>0</TestElement2><TestElement3>0</TestElement3><TestElement4>0</TestElement4><TestElement5>0</TestElement5><TestElement6>0</TestElement6></document>"""
-
-PrecompileTools.@compile_workload begin
-    try
-        XmlStructLoader.load(IOBuffer(__XSDTOSTRUCT_SAMPLE_XML__), @__MODULE__; validate = false)
-    catch
-    end
-end
-
 module __meta
 
     import ..TestDecimalRestrictions_struct
@@ -53,6 +41,21 @@ module __meta
     xsd_filename = "decimal_restrictions.xsd"
     XsdToStruct_version = "0.1.0"
 
+end
+
+import PrecompileTools
+import XmlStructLoader
+
+const __XSDTOSTRUCT_SAMPLE_XML__ = """<document><TestElement1>0</TestElement1><TestElement2>0</TestElement2><TestElement3>0</TestElement3><TestElement4>0</TestElement4><TestElement5>0</TestElement5><TestElement6>0</TestElement6></document>"""
+
+PrecompileTools.@compile_workload begin
+    try
+    __xsdtostruct_sample_path__ = tempname()
+    write(__xsdtostruct_sample_path__, __XSDTOSTRUCT_SAMPLE_XML__)
+    XmlStructLoader.load(__xsdtostruct_sample_path__, @__MODULE__; validate = false)
+    rm(__xsdtostruct_sample_path__; force = true)
+    catch
+    end
 end
 
 end

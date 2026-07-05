@@ -35,18 +35,6 @@ using Reexport
 include("optional_elements_struct.jl")
 @reexport using .OptionalElements_struct
 
-import PrecompileTools
-import XmlStructLoader
-
-const __XSDTOSTRUCT_SAMPLE_XML__ = """<document><TestElement1><Element_double>0</Element_double></TestElement1><TestElement2><Element_string>x</Element_string><Element_double>0</Element_double></TestElement2><TestElement3></TestElement3><TestElement4></TestElement4><TestElement5></TestElement5><TestElement6><Element_simple3>2000-01-01T00:00:00</Element_simple3></TestElement6></document>"""
-
-PrecompileTools.@compile_workload begin
-    try
-        XmlStructLoader.load(IOBuffer(__XSDTOSTRUCT_SAMPLE_XML__), @__MODULE__; validate = false)
-    catch
-    end
-end
-
 module __meta
 
     import ..OptionalElements_struct
@@ -55,6 +43,21 @@ module __meta
     xsd_filename = "optional_elements.xsd"
     XsdToStruct_version = "0.1.0"
 
+end
+
+import PrecompileTools
+import XmlStructLoader
+
+const __XSDTOSTRUCT_SAMPLE_XML__ = """<document><TestElement1><Element_double>0</Element_double></TestElement1><TestElement2><Element_string>x</Element_string><Element_double>0</Element_double></TestElement2><TestElement3></TestElement3><TestElement4></TestElement4><TestElement5></TestElement5><TestElement6><Element_simple3>2000-01-01T00:00:00+00:00</Element_simple3></TestElement6></document>"""
+
+PrecompileTools.@compile_workload begin
+    try
+    __xsdtostruct_sample_path__ = tempname()
+    write(__xsdtostruct_sample_path__, __XSDTOSTRUCT_SAMPLE_XML__)
+    XmlStructLoader.load(__xsdtostruct_sample_path__, @__MODULE__; validate = false)
+    rm(__xsdtostruct_sample_path__; force = true)
+    catch
+    end
 end
 
 end
