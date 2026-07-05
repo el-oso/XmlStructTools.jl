@@ -18,10 +18,18 @@ using Statistics: median
 const HERE = @__DIR__
 
 function touch_first_field(loaded)
-    # matches the "large document, only a handful of fields touched" motivating use case
-    props = propertynames(loaded)
+    # matches the "large document, only a handful of fields touched" motivating use case.
+    # Base.invokelatest is required here: the generated module (and its @lazy-generated
+    # Base.getproperty/propertynames overrides) is defined via a dynamic Base.include() at runtime
+    # inside run_and_save, in a later "world age" than code compiled before that point. Without
+    # invokelatest, a plain getproperty/propertynames call silently falls back to the generic
+    # method and returns the raw LazilyInitializedFields.Uninitialized sentinel without ever
+    # calling the real _init_<field> accessor - confirmed empirically (this exact bug shipped in
+    # the first version of this script, caught by an independent whole-branch review: the
+    # committed "touch adds <2% overhead" numbers were measuring nothing at all).
+    props = Base.invokelatest(propertynames, loaded)
     isempty(props) && return nothing
-    return getproperty(loaded, first(props))
+    return Base.invokelatest(getproperty, loaded, first(props))
 end
 
 function run_and_save(name::String, xsd_path::String, xml_path::String, module_dir::String)
