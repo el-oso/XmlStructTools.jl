@@ -11,6 +11,7 @@ import XmlStructPugixml
 using AbstractXsdTypes
 
 include(joinpath("xml_parser", "xml_parser.jl"))
+include(joinpath("xml_parser", "lazy_xml_node.jl"))
 include("xml_module_utilities.jl")
 
 export load, import_module_from_xml, use_module_from_xml

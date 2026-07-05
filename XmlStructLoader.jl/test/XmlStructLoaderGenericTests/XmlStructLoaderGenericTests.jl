@@ -11,5 +11,5 @@ generic_test_files = get_test_files(generic_data_dir)
 generate_modules(generic_data_dir)
 
 # run tests
-include("load_tests.jl")
-include("check_tests.jl")
+include("load.jl")
+include("check.jl")
