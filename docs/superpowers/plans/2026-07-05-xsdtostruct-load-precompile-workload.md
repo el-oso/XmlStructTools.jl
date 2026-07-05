@@ -10,7 +10,7 @@
 
 **Branch:** `feature/xsdtostruct-load-precompile-workload`, rebased onto `el-oso:perf/xml-backend-bakeoff` (not `main`). This was a deliberate, confirmed pivot: `main`'s `XmlStructLoader.jl` currently has a real, unrelated, pre-existing bug (`type_in_module` misroutes plain built-in-scalar-typed fields into the wrong parser branch on modern Julia, causing a `BoundsError` in `get_base_field_type` for essentially any real `load()` call) that blocks this plan's own tests and Task 3's latency verification. That bug is already fixed on `perf/xml-backend-bakeoff` (an unrelated rewrite of `type_in_module` from that branch's own pugixml-backend work) — confirmed by running the full 5-package test suite on the rebased branch (all pass, including `XmlStructLoader.jl`'s real `load()` tests). The eventual PR for this feature will target `perf/xml-backend-bakeoff`, not `main` directly, since that branch's own PR (#80) is still open. Environment setup on this base requires `Pkg.develop`-ing `XmlStructPugixml.jl` (and `Pkg.build("XmlStructPugixml")` to compile its shim) alongside the other siblings, per this monorepo's established local-path-dev convention — do this for every environment (main + test) of every package you touch, and verify with `git diff --stat <Project.toml>` that only expected entries change (a `Pkg.develop` run from the wrong directory, or one that pulls in an unnecessary transitive dependency as a new *direct* one, has bitten this exact monorepo repeatedly — check before trusting the result).
 
-**Design history note:** an earlier pass through this plan mistakenly ruled out `@compile_workload` (tested only against a bare `include()`'d script, where it's genuinely inert) and used a plain eager `try/catch` call instead. That was reverted once it was confirmed that generated modules are normally `include()`d from inside another real, already-installed package — in that context `@compile_workload` fires correctly and, measured, wins decisively (fresh-process cold `load()`: no workload 3.33s, plain eager call 2.70s, `@compile_workload` 1.65s — see spec's "Mechanism" section for the full investigation). If Task 2 was already in progress under the eager-call design when this plan version is read, discard that work and start Task 2 fresh from this version.
+**Design history note:** an earlier pass through this plan mistakenly ruled out `@compile_workload` (tested only against a bare `include()`'d script, where it's genuinely inert) and used a plain eager `try/catch` call instead. That was reverted once it was confirmed that generated modules are normally `include()`d from inside another real, already-installed package — in that context `@compile_workload` fires correctly and beats a plain eager call. The first attempt at measuring this used a single unrepeated sample per variant and reported a dramatic win (no workload 3.33s, eager 2.70s, `@compile_workload` 1.65s); that specific 1.65s number was noise and did not reproduce under repetition — the properly-repeated numbers are no workload ~3.3s, eager call ~3.3-3.4s (no improvement), `@compile_workload` ~2.7-2.8s (a real but modest ~17-20% win). The *decision* (use `@compile_workload`) still holds — a plain eager call gets no benefit even embedded in a real precompiling package — but the *magnitude* is smaller than first reported; see the spec's "Mechanism" section for the full corrected investigation. If Task 2 was already in progress under the eager-call design when this plan version is read, discard that work and start Task 2 fresh from this version.
 
 ## Global Constraints
 
@@ -676,14 +676,24 @@ cp "$DIR/basic_types/basic_types_struct.jl" "$HARNESS/HarnessPkg/src/"
 cat > "$HARNESS/HarnessPkg/src/HarnessPkg.jl" <<'EOF'
 module HarnessPkg
 include("basic_types.jl")
-import .basic_types
+import .TestComplexAndSimple
 end
 EOF
+```
 
+`basic_types.xsd`'s generated module is named `TestComplexAndSimple` (from the schema's
+`targetNamespace`), not `basic_types` — the filename and the module name inside it are different
+things. Reference it as `HarnessPkg.TestComplexAndSimple` below, not `HarnessPkg.basic_types`.
+
+```bash
 ENV_DIR=$(mktemp -d)
-julia --project="$ENV_DIR" -e "using Pkg; Pkg.develop(path=raw\"$HARNESS/HarnessPkg\"); Pkg.develop(path=raw\"$(pwd)/..\"/XmlStructLoader.jl); Pkg.instantiate()"
+julia --project="$ENV_DIR" -e "using Pkg; Pkg.develop(path=raw\"$HARNESS/HarnessPkg\"); Pkg.develop(path=raw\"$(pwd)/../XmlStructLoader.jl\"); Pkg.instantiate()"
 julia --project="$ENV_DIR" -e 'using Pkg; Pkg.build("XmlStructPugixml")'
 ```
+
+(Careful with the second `Pkg.develop` line's quoting: the whole path must be inside one `raw"..."`
+string — `raw\"$(pwd)/../XmlStructLoader.jl\"`, not split across two strings — otherwise Julia
+parses it as a string followed by an undefined identifier.)
 
 (The explicit `Pkg.develop` of the sibling `XmlStructLoader.jl` ensures the harness environment uses
 this monorepo's local copy, not a registered version — this monorepo's established convention for
@@ -704,25 +714,32 @@ CHECK=$(mktemp --suffix=.jl)
 cat > "$CHECK" <<EOF
 using HarnessPkg, XmlStructLoader
 xml = raw"$(pwd)/../XmlStructLoader.jl/test/test_data/generic_cases/basic_types.xml"
-t = @elapsed loaded = XmlStructLoader.load(xml, HarnessPkg.basic_types)
+t = @elapsed loaded = XmlStructLoader.load(xml, HarnessPkg.TestComplexAndSimple)
 println("cold load() with @compile_workload-precompiled package: ", t, " s")
 println("check: ", loaded.TestElement1.Element_string)
 EOF
 julia --project="$ENV_DIR" --startup-file=no "$CHECK"
 ```
 
+Run this **3 times** (fresh subprocess each time — the measurement command above already is one),
+not once — a single sample is not sufficient to trust a latency number, even for a quick
+verification-only check. (This exact mistake was made during design: an earlier single-shot
+measurement reported a ~50% win that turned out to be noise and didn't reproduce under repetition.)
+
 Then stash this branch's changes, regenerate the module (now without the workload), rebuild a fresh
 harness the same way (new tempdirs — don't reuse the old `HARNESS`/`ENV_DIR`, since the old one is
-already precompiled with the workload baked in), and repeat the same two subprocess steps to get the
-baseline number, then `git stash pop`.
+already precompiled with the workload baked in), and repeat the same steps 3 times to get the
+baseline numbers, then `git stash pop`.
 
-Expected: this branch's number should be dramatically lower than the baseline's (baseline was
-measured at ~3.3s for this exact fixture/harness shape during design; with the workload, ~1.65s —
-see the spec's "Mechanism" section for the full three-way comparison). Report both numbers; if this
-branch's number is *not* meaningfully faster, that's a signal the workload isn't actually firing
-during precompilation (check the `julia --project="$ENV_DIR" -e "using HarnessPkg"` step's output —
-it should take noticeably longer than a normal package precompile if the workload ran) — worth
-investigating before considering this plan done.
+Expected: this branch's numbers should be modestly but consistently lower than the baseline's —
+around a 17-20% reduction, not a dramatic one (baseline ~3.3s, with the workload ~2.7-2.8s, measured
+with proper repetition — see the spec's "Mechanism" section for the full, corrected three-way
+comparison and why the original single-shot ~50%/1.65s number didn't hold up). Report all six
+numbers (3 per side); if this branch's numbers are *not* meaningfully faster than baseline at all,
+that's a signal the workload isn't actually firing during precompilation (check the
+`julia --project="$ENV_DIR" -e "using HarnessPkg"` step's output — it should take roughly double a
+normal package precompile if the workload ran, e.g. ~1.3s vs ~0.7s) — worth investigating before
+considering this plan done. A ~17-20% win, not a ~50% one, is the expected, passing outcome here.
 
 - [ ] **Step 4: No commit needed** — this task is verification-only; Tasks 1 and 2 already committed everything.
 
@@ -734,3 +751,5 @@ investigating before considering this plan done.
 - **Base branch:** rebased onto `perf/xml-backend-bakeoff` and re-verified end-to-end — all 5 packages' test suites pass on the new base (1688/18/120/88/18), confirmed via direct test runs, not assumed from the rebase alone.
 - **Type consistency:** `synthesize_sample_xml(xsd_module_builder::XSDStructModuleBuilderType)::Union{Nothing,String}` is defined in Task 1 Step 4 and consumed with that exact name/signature in Task 2 Step 5 — matches.
 - **Scope:** single cohesive feature, one package (`XsdToStruct.jl`), two implementation tasks plus a verification-only gate — not further decomposable without creating an artificial task boundary.
+- **Ripple-fix scope:** `PrecompileTools` also had to become a real dependency of `XmlStructLoader.jl` (not just a text-reference emitted by `XsdToStruct.jl`) because its own `import_module`/`use_module` convenience functions `include()` generated code directly into `XmlStructLoader`'s own module scope — confirmed with the user via AskUserQuestion before touching a file outside this plan's originally declared scope.
+- **Measurement correction:** the original design-time "~50% win" (3.33s→1.65s) was an unrepeated single sample and did not reproduce — properly repeated measurement (3 samples per variant, two independent module-scoping structures) shows a consistent ~17-20% win instead. The design decision (`@compile_workload` over a plain eager call) still holds — a plain eager call showed no measurable benefit at all when repeated — but report the corrected magnitude, not the original one, in the final review.
