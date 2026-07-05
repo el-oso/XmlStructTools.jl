@@ -7,7 +7,6 @@ All generated types are exported by this module and some meta data is included i
 In order to use this module the following dependencies need to be installed:
     AbstractXsdTypes
     Reexport
-    XmlStructLoader
 
 This module can be used/import as follows:
 
@@ -29,15 +28,6 @@ using Reexport
 
 include("type_in_element_struct.jl")
 @reexport using .TestTypeInElement_struct
-
-import XmlStructLoader
-
-const __XSDTOSTRUCT_SAMPLE_XML__ = """<document><TestSimple2>x</TestSimple2><TestComplex1><Element_string>x</Element_string><Element_double>0</Element_double><Element_boolean>false</Element_boolean></TestComplex1><TestComplex2>x</TestComplex2><TestComplex3>0</TestComplex3></document>"""
-
-try
-    XmlStructLoader.load(IOBuffer(__XSDTOSTRUCT_SAMPLE_XML__), @__MODULE__; validate = false)
-catch
-end
 
 module __meta
 
