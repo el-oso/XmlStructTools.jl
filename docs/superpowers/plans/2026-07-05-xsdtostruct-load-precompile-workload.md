@@ -6,9 +6,9 @@
 
 **Architecture:** A new synthesis pass in `XsdToStruct.jl` walks the same `ComplexTreeNode`/`FieldData` tree the struct-writer already walks, building a minimal type-parseable (not restriction-satisfying) sample XML string for the schema's root type. That string plus a `PrecompileTools.@compile_workload` block calling `XmlStructLoader.load(IOBuffer(SAMPLE), @__MODULE__; validate=false)` get emitted into the generated top-level module file. A silent `try/catch` around the workload call means an unanticipated schema shape can never break module generation — it only forfeits the warm-up for that one schema.
 
-**Tech Stack:** Julia 1.12, `XsdToStruct.jl` (this plan's package), `XmlStructLoader.jl` (new test-only + generated-module dependency), `PrecompileTools.jl` (new generated-module dependency; test-only for `XsdToStruct.jl` itself, needed to exercise `@compile_workload` in tests).
+**Tech Stack:** Julia 1.12, `XsdToStruct.jl` (this plan's package), `XmlStructLoader.jl` (new test-only dependency), `PrecompileTools.jl` (test-only dependency of `XsdToStruct.jl`, needed to exercise `@compile_workload` in tests — already a *main* dependency of `XsdToStruct.jl` on this branch, for its own pre-existing `xsd_to_struct_module` workload).
 
-**Branch:** `feature/xsdtostruct-load-precompile-workload` (already checked out, off `main` — this plan targets `main`'s current state, not the unmerged `perf/xml-backend-bakeoff` branch. `main` still uses `LightXML` in `XsdToStruct.jl`; that's unaffected by this plan either way.)
+**Branch:** `feature/xsdtostruct-load-precompile-workload`, rebased onto `el-oso:perf/xml-backend-bakeoff` (not `main`). This was a deliberate, confirmed pivot: `main`'s `XmlStructLoader.jl` currently has a real, unrelated, pre-existing bug (`type_in_module` misroutes plain built-in-scalar-typed fields into the wrong parser branch on modern Julia, causing a `BoundsError` in `get_base_field_type` for essentially any real `load()` call) that blocks this plan's own tests and Task 3's latency verification. That bug is already fixed on `perf/xml-backend-bakeoff` (an unrelated rewrite of `type_in_module` from that branch's own pugixml-backend work) — confirmed by running the full 5-package test suite on the rebased branch (all pass, including `XmlStructLoader.jl`'s real `load()` tests). The eventual PR for this feature will target `perf/xml-backend-bakeoff`, not `main` directly, since that branch's own PR (#80) is still open. Environment setup on this base requires `Pkg.develop`-ing `XmlStructPugixml.jl` (and `Pkg.build("XmlStructPugixml")` to compile its shim) alongside the other siblings, per this monorepo's established local-path-dev convention — do this for every environment (main + test) of every package you touch, and verify with `git diff --stat <Project.toml>` that only expected entries change (a `Pkg.develop` run from the wrong directory, or one that pulls in an unnecessary transitive dependency as a new *direct* one, has bitten this exact monorepo repeatedly — check before trusting the result).
 
 **Design history note:** an earlier pass through this plan mistakenly ruled out `@compile_workload` (tested only against a bare `include()`'d script, where it's genuinely inert) and used a plain eager `try/catch` call instead. That was reverted once it was confirmed that generated modules are normally `include()`d from inside another real, already-installed package — in that context `@compile_workload` fires correctly and, measured, wins decisively (fresh-process cold `load()`: no workload 3.33s, plain eager call 2.70s, `@compile_workload` 1.65s — see spec's "Mechanism" section for the full investigation). If Task 2 was already in progress under the eager-call design when this plan version is read, discard that work and start Task 2 fresh from this version.
 
@@ -20,7 +20,7 @@
 - The workload's `load()` call is wrapped in a silent `try/catch` — synthesis failures must never break a generated module.
 - `GroupFieldData` fields and any tree-node kind other than `ComplexTreeNode`/`SimpleTreeNode` are skipped (omitted) in synthesis — out of scope for v1, safe because of the try/catch above.
 - Element attributes (`__xml_attributes`) are not synthesized — out of scope, no per-schema benefit (see spec).
-- `XsdToStruct.jl`'s own `Project.toml` gains **no new runtime dependency** — it only emits text referencing `PrecompileTools`/`XmlStructLoader`, it doesn't `using` them itself.
+- `XsdToStruct.jl`'s own `Project.toml` gains **no new runtime dependency from this plan** — it only emits text referencing `PrecompileTools`/`XmlStructLoader`, it doesn't `using` them itself. (`PrecompileTools` is already a main dependency there independent of this plan, for `XsdToStruct.jl`'s own pre-existing workload — nothing to add.)
 - `@compile_workload`'s body does not run under a plain `include()` — a test that only `include()`s the generated file cannot verify the workload actually fires; that requires a real installed-package harness (own `Project.toml`/UUID, triggered via `using`).
 
 ---
@@ -57,6 +57,12 @@ git status --short XsdToStruct.jl/
 ```
 
 Expected: only files under `XsdToStruct.jl/test/` show as modified/untracked (`Project.toml`, `Manifest.toml`). If `XsdToStruct.jl/Project.toml` (the main one, not `test/Project.toml`) shows as modified, the command ran in the wrong directory — revert with `git checkout -- XsdToStruct.jl/Project.toml` and redo Step 1 from `XsdToStruct.jl/test/`.
+
+`XmlStructLoader.jl` on this branch itself depends on `XmlStructPugixml.jl` (a C++ shim binding).
+`Pkg.instantiate()` (run automatically by the next step's `Pkg.test()`) resolves it transitively via
+`XmlStructLoader.jl`'s own manifest without needing its own explicit entry in
+`XsdToStruct.jl/test/Project.toml` — confirmed, don't add one. It does need its shim compiled once
+per fresh environment: `julia --project=XsdToStruct.jl/test -e 'using Pkg; Pkg.build("XmlStructPugixml")'`.
 
 - [ ] **Step 2: Write the failing test**
 
@@ -619,26 +625,16 @@ Expected: PASS, zero failures/errors.
 
 ```bash
 cd ../AbstractXsdTypes.jl && julia --project=. -e 'using Pkg; Pkg.test()'
+cd ../XmlStructPugixml.jl && julia --project=. -e 'using Pkg; Pkg.test()'
 cd ../XmlStructLoader.jl && julia --project=. -e 'using Pkg; Pkg.test()'
 cd ../XmlStructWriter.jl && julia --project=. -e 'using Pkg; Pkg.test()'
 cd ..
 ```
 
-(Skip `XmlStructPugixml.jl` — it doesn't exist on `main`, only on the unmerged `perf/xml-backend-bakeoff` branch.)
-
-**Known pre-existing failure, unrelated to this feature:** `XmlStructLoader.jl`'s own test suite is
-currently broken on `main` — confirmed independently on a clean `origin/main` worktree with
-registry-resolved deps (69/72 errors, `BoundsError` in `get_base_field_type`,
-`xml_parser_type_info.jl`). Root cause: a `ConcreteStructs` `"0.1"`→`"0.2"` compat bump (already
-merged via CompatHelper) changed the field layout of `AbstractXsdTypes.jl`'s
-`@concrete struct UnionType`, and `get_base_field_type`'s index-based `fieldtype(T, field_index)`
-no longer matches. This predates this branch and this feature entirely — do not attempt to fix it
-as part of this task; report it as a pre-existing failure, not a regression, and do not let it block
-this plan's own completion. Since `XmlStructWriter.jl`'s test suite depends on `XmlStructLoader.jl`
-being loadable (not necessarily on this specific broken code path executing), confirm whether it's
-affected too and report accordingly — if it also fails for the *same* reason, that's expected and
-still not this feature's concern; if it fails for a *different* reason, treat that as a real finding
-requiring investigation before this task is done.
+Expected: all PASS (1688 / 18 / 88 / 18 tests respectively, matching the numbers confirmed when
+this branch was rebased onto `perf/xml-backend-bakeoff` — see the header's "Branch" note for why
+that base was chosen: it already carries the fix for a real `XmlStructLoader.jl` bug that blocks
+real `load()` calls on plain `main`).
 
 - [ ] **Step 3: Measure the actual latency win via a real installed-package harness**
 
@@ -686,11 +682,16 @@ EOF
 
 ENV_DIR=$(mktemp -d)
 julia --project="$ENV_DIR" -e "using Pkg; Pkg.develop(path=raw\"$HARNESS/HarnessPkg\"); Pkg.develop(path=raw\"$(pwd)/..\"/XmlStructLoader.jl); Pkg.instantiate()"
+julia --project="$ENV_DIR" -e 'using Pkg; Pkg.build("XmlStructPugixml")'
 ```
 
 (The explicit `Pkg.develop` of the sibling `XmlStructLoader.jl` ensures the harness environment uses
 this monorepo's local copy, not a registered version — this monorepo's established convention for
-avoiding version-skew bugs between sibling packages.)
+avoiding version-skew bugs between sibling packages. `XmlStructLoader.jl` on this branch itself
+depends on `XmlStructPugixml.jl`; `Pkg.instantiate()` resolves it transitively via
+`XmlStructLoader.jl`'s own manifest without needing an explicit entry in `HarnessPkg/Project.toml`
+— confirmed during setup: adding it explicitly there is unnecessary and was reverted after checking.
+The `Pkg.build("XmlStructPugixml")` step compiles its C++ shim — needed once per fresh environment.)
 
 Trigger real precompilation in a subprocess (this is where `@compile_workload`'s body actually
 executes), then in a **separate fresh** subprocess measure the cold `load()` call against the real
@@ -729,6 +730,7 @@ investigating before considering this plan done.
 
 ## Self-Review Notes
 
-- **Spec coverage:** `validate=false` (Task 1 Step 4, Task 2 Step 5) ✓; unconditional new `PrecompileTools`/`XmlStructLoader` deps in generated modules (Task 2 Steps 5-6) ✓; silent try/catch (Task 2 Step 5) ✓; `GroupFieldData`/unhandled-node-kind skip (Task 1 Step 4) ✓; no new runtime dep on `XsdToStruct.jl`'s own `Project.toml` (only `test/Project.toml` touched, in Tasks 1 and 2) ✓; real-precompilation latency verification against the spec's measured three-way comparison (Task 3 Step 3) ✓; known pre-existing unrelated failure flagged so it isn't mistaken for a regression (Task 3 Step 2) ✓.
+- **Spec coverage:** `validate=false` (Task 1 Step 4, Task 2 Step 5) ✓; unconditional new `PrecompileTools`/`XmlStructLoader` deps in generated modules (Task 2 Steps 5-6) ✓; silent try/catch (Task 2 Step 5) ✓; `GroupFieldData`/unhandled-node-kind skip (Task 1 Step 4) ✓; no new runtime dep on `XsdToStruct.jl`'s own `Project.toml` from this plan (only `test/Project.toml` touched, in Tasks 1 and 2) ✓; real-precompilation latency verification against the spec's measured three-way comparison (Task 3 Step 3) ✓.
+- **Base branch:** rebased onto `perf/xml-backend-bakeoff` and re-verified end-to-end — all 5 packages' test suites pass on the new base (1688/18/120/88/18), confirmed via direct test runs, not assumed from the rebase alone.
 - **Type consistency:** `synthesize_sample_xml(xsd_module_builder::XSDStructModuleBuilderType)::Union{Nothing,String}` is defined in Task 1 Step 4 and consumed with that exact name/signature in Task 2 Step 5 — matches.
 - **Scope:** single cohesive feature, one package (`XsdToStruct.jl`), two implementation tasks plus a verification-only gate — not further decomposable without creating an artificial task boundary.
