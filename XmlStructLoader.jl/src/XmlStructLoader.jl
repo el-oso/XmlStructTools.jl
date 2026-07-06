@@ -15,7 +15,7 @@ include(joinpath("xml_parser", "lazy_xml_node.jl"))
 include("xml_module_utilities.jl")
 
 export load, import_module_from_xml, use_module_from_xml,
-    LoadStrategy, ReadAllData, ReadOnAccess, DEFAULT_LOAD_STRATEGY
+    LoadStrategy, ReadAllData, ReadOnAccess, DEFAULT_LOAD_STRATEGY, close_lazy_document!
 
 abstract type LoadStrategy end
 
@@ -104,6 +104,26 @@ end
 load(xml_io::IO, module_ref::Module, ::ReadAllData; validate::Bool = true) =
     Base.@invokelatest construct_xml_object(xml_io, module_ref, validate = validate)
 
+"""
+    _lazy_root_constructor_exists(root_type)::Bool
+
+`AbstractXsdTypes.jl` gives every `T <: AbstractXSDComplex` a fully generic outer constructor
+(`type_definitions.jl`, `(::Type{T})(values::Vararg{<:Any,N_input}; ...)`) that accepts one
+positional argument of any type - including a `LazyNode` - so `hasmethod(root_type,
+Tuple{LazyNode})` alone is always true and can't tell a real lazy-capable root (XsdToStruct.jl
+codegen emitting `T(node::LazyNode)` in the generated module) from a non-lazy-capable one that
+merely inherits the generic fallback (confirmed by hitting exactly this: a choice-bearing root
+type's fallback constructor accepted a `LazyNode` and only failed several calls deep trying to
+`convert` it to a `NamedTuple`). The generated lazy constructor is strictly more specific than the
+vararg fallback, so `which` resolves to it whenever it exists; checking the defining method's
+module distinguishes "real lazy constructor" (defined in the generated struct module) from
+"generic fallback" (defined in `AbstractXsdTypes`).
+"""
+function _lazy_root_constructor_exists(root_type)::Bool
+    hasmethod(root_type, Tuple{LazyNode}) || return false
+    return which(root_type, Tuple{LazyNode}).module !== AbstractXsdTypes
+end
+
 function load(xml_io::IO, module_ref::Module, ::ReadOnAccess; validate::Bool = true)
     validate && throw(ArgumentError(
         "load_strategy=ReadOnAccess() is not compatible with validate=true: XSD restriction " *
@@ -116,6 +136,11 @@ function load(xml_io::IO, module_ref::Module, ::ReadOnAccess; validate::Bool = t
     root_ptr = XmlStructPugixml.root(doc_ptr)
     root_node = LazyNode(root_ptr, handle)
     root_type = Base.@invokelatest module_ref.__meta.root_type
+    Base.@invokelatest(_lazy_root_constructor_exists(root_type)) || throw(ArgumentError(
+        "load_strategy=ReadOnAccess() requires a lazy-capable root type, but $(root_type) is not " *
+        "lazy-capable (choice-bearing or zero-field root types don't support ReadOnAccess). " *
+        "Use load_strategy=ReadAllData() (the default) instead.",
+    ))
     loaded = Base.@invokelatest root_type(root_node)
     # Match construct_xml_root_object's eager-path bookkeeping: it stamps the document root's own
     # tag name into __xml_attributes["__root_name"] (XmlStructWriter.jl reads this back out to know
@@ -129,6 +154,20 @@ function load(xml_io::IO, module_ref::Module, ::ReadOnAccess; validate::Bool = t
     attrs["__root_name"] = name(root_ptr)
     setfield!(loaded, :__xml_attributes, attrs)
     return loaded
+end
+
+"""
+    close_lazy_document!(x)::Nothing
+
+Deterministically release the pugixml document backing a `ReadOnAccess`-loaded struct, instead of
+waiting for GC. A no-op (returns `nothing` without error) if `x` was loaded with `ReadAllData()`
+(no `_node` field, or `_node === nothing`) or has already been closed.
+"""
+function close_lazy_document!(x)::Nothing
+    hasfield(typeof(x), :_node) || return nothing
+    node = getfield(x, :_node)
+    node isa LazyNode && close(node.owner)
+    return nothing
 end
 
 """

@@ -182,6 +182,22 @@ not assumed to just work because it's declared once somewhere.
   recursively to emit XML, which naturally triggers lazy materialization. To be confirmed by a
   round-trip test, not assumed.
 
+## Known behavior changes
+
+- **`ReadAllData` (eager) empty-content complex elements now keep their attributes and honor
+  `validate`.** `xml_parser_in_module.jl`'s `parse_xml_node_in_module`, in the branch for a complex
+  type with no element content and no default value, used to construct the value with a bare `T()`
+  — which silently fell back to that type's own kwarg defaults (`__xml_attributes=nothing`,
+  `__validated=true`), regardless of the caller's actual `validate` argument or any real attributes
+  present on the tag (e.g. `<TestElement3 id="x"></TestElement3>` would lose `id="x"` entirely and
+  always report `__validated=true` even under `validate=false`). This plan's Task 6 changed that
+  call to `T(; __xml_attributes = getattributes_dict(xml_node), __validated = validate)`, threading
+  both through correctly. This is a change to `ReadAllData` behavior, not lazy-only, and was flagged
+  by the final whole-branch review as contradicting this document's stated goal of leaving
+  `ReadAllData` byte-for-byte unchanged. It is being kept, not reverted: it corrects a real,
+  previously-silent bug rather than introducing a new one, incidentally fixed while adding lazy
+  support.
+
 ## Testing
 
 Three of the four touched packages (`AbstractXsdTypes.jl`, `XsdToStruct.jl`,

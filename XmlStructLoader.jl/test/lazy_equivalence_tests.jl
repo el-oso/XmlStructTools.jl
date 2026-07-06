@@ -71,6 +71,7 @@ end
 
 @testitem "repeated field granularity: touching one element materializes the whole field, not siblings" setup=[LazyLoadTestHelpers] begin
     using XsdToStruct
+    using LazilyInitializedFields
     xsd_path = joinpath(@__DIR__, "test_data", "generic_cases", "group_element.xsd")
     xml_candidates = filter(
         f -> endswith(f, ".xml"),
@@ -86,9 +87,18 @@ end
 
     lazy = Base.invokelatest(XmlStructLoader.load, group_xml, module_ref; load_strategy = XmlStructLoader.ReadOnAccess(), validate = false)
     # Accessing the object at all only constructs the top-level struct - verified by the fact this
-    # doesn't error and the object is returned; deeper granularity (whether a specific sibling field
-    # is still `uninit` before being touched) is exercised directly via LazilyInitializedFields.@isinit
-    # in the generated struct's own module scope, added as part of Task 3's codegen test instead of
-    # here (this file works across many schemas generically and can't assume field names).
+    # doesn't error and the object is returned. Deeper, field-level granularity (touching one field
+    # does not materialize an untouched sibling) is checked below via
+    # LazilyInitializedFields.isinit(x, field::Symbol) - a real function, not a macro. group_element's
+    # root type (documentType) has three sibling fields, TestElement1/2/3; the first two are used here.
     @test !isnothing(lazy)
+
+    root_type = typeof(lazy)
+    field_names = fieldnames(root_type)
+    @test :TestElement1 in field_names && :TestElement2 in field_names
+    first_field, second_field = :TestElement1, :TestElement2
+    @test !Base.invokelatest(LazilyInitializedFields.isinit, lazy, first_field)
+    Base.invokelatest(getproperty, lazy, first_field)
+    @test Base.invokelatest(LazilyInitializedFields.isinit, lazy, first_field)
+    @test !Base.invokelatest(LazilyInitializedFields.isinit, lazy, second_field)  # untouched sibling stays uninit
 end

@@ -96,6 +96,67 @@ end
     )
 end
 
+@testitem "ReadOnAccess on a choice-bearing root type raises a clear ArgumentError, not a MethodError" setup=[LazyLoadTestHelpers] begin
+    using XsdToStruct
+    # Minimal schema whose root type is itself choice-bearing (unlike choice_element.xsd's
+    # documentType, which only has choice-bearing *child* types - see the per-node dispatch
+    # comment in XsdToStruct.jl/test/lazy_struct_codegen_tests.jl - so its root gets a lazy
+    # constructor and doesn't exercise this path). is_lazy_capable (xsd_module_builder_common.jl)
+    # excludes any type with a direct xs:choice field, so XsdToStruct never emits a
+    # documentType(::LazyNode) constructor here.
+    xsd_content = """
+    <?xml version="1.0"?>
+    <schema xmlns="http://www.w3.org/2001/XMLSchema" xmlns:tns="ChoiceRoot" targetNamespace="ChoiceRoot">
+        <element name="document" type="tns:documentType"/>
+        <complexType name="documentType">
+            <choice>
+                <element name="choice1" type="string"/>
+                <element name="choice2" type="decimal"/>
+            </choice>
+        </complexType>
+    </schema>
+    """
+    outdir = mktempdir()
+    xsd_path = joinpath(outdir, "choice_root.xsd")
+    write(xsd_path, xsd_content)
+    generated_path = XsdToStruct.xsd_to_struct_module(xsd_path, outdir)
+    Base.include(Main, generated_path)
+    module_name = extract_generated_module_name(read(generated_path, String))
+    module_ref = Base.invokelatest(getproperty, Main, module_name)
+
+    xml_path = joinpath(outdir, "choice_root.xml")
+    write(xml_path, """<tns:document xmlns:tns="ChoiceRoot"><choice1>a</choice1></tns:document>""")
+
+    @test_throws ArgumentError Base.invokelatest(
+        XmlStructLoader.load, xml_path, module_ref;
+        load_strategy = XmlStructLoader.ReadOnAccess(), validate = false,
+    )
+end
+
+@testitem "close_lazy_document! releases the pugixml document and is idempotent; no-op for ReadAllData" setup=[LazyLoadTestHelpers] begin
+    using XsdToStruct
+    xsd_path = joinpath(@__DIR__, "test_data", "generic_cases", "basic_types.xsd")
+    outdir = mktempdir()
+    generated_path = XsdToStruct.xsd_to_struct_module(xsd_path, outdir)
+    Base.include(Main, generated_path)
+    module_name = extract_generated_module_name(read(generated_path, String))
+    module_ref = Base.invokelatest(getproperty, Main, module_name)
+
+    xml_path = joinpath(@__DIR__, "test_data", "generic_cases", "basic_types.xml")
+    lazy = Base.invokelatest(XmlStructLoader.load, xml_path, module_ref; load_strategy = XmlStructLoader.ReadOnAccess(), validate = false)
+
+    handle = getfield(lazy, :_node).owner
+    @test handle.ptr != C_NULL
+    XmlStructLoader.close_lazy_document!(lazy)
+    @test handle.ptr == C_NULL
+    # idempotent - closing an already-closed handle doesn't error
+    XmlStructLoader.close_lazy_document!(lazy)
+    @test handle.ptr == C_NULL
+
+    eager = Base.invokelatest(XmlStructLoader.load, xml_path, module_ref)
+    @test XmlStructLoader.close_lazy_document!(eager) === nothing
+end
+
 @testitem "ReadAllData remains the default and is unaffected" setup=[LazyLoadTestHelpers] begin
     using XsdToStruct
     xsd_path = joinpath(@__DIR__, "test_data", "generic_cases", "basic_types.xsd")
@@ -112,4 +173,40 @@ end
     te1_explicit = Base.invokelatest(getproperty, loaded_explicit, :TestElement1)
     @test Base.invokelatest(getproperty, te1_default, :Element_string) ==
           Base.invokelatest(getproperty, te1_explicit, :Element_string)
+end
+
+@testitem "ReadAllData: attributes and validate survive on an empty-content complex element (regression)" setup=[LazyLoadTestHelpers] begin
+    using XsdToStruct
+    # Regression coverage for the xml_parser_in_module.jl fix (Task 6): an empty-content complex
+    # element used to be constructed via bare T() - silently dropping any real XML attributes and
+    # ignoring the caller's validate flag (always __validated=true). Zero-field complex type here
+    # mirrors complex_content.xsd's Element_empty pattern.
+    xsd_content = """
+    <?xml version="1.0"?>
+    <schema xmlns="http://www.w3.org/2001/XMLSchema" xmlns:tns="EmptyAttr" targetNamespace="EmptyAttr">
+        <element name="document" type="tns:documentType"/>
+        <complexType name="documentType">
+            <sequence>
+                <element name="TestElement3">
+                    <complexType/>
+                </element>
+            </sequence>
+        </complexType>
+    </schema>
+    """
+    outdir = mktempdir()
+    xsd_path = joinpath(outdir, "empty_attr.xsd")
+    write(xsd_path, xsd_content)
+    generated_path = XsdToStruct.xsd_to_struct_module(xsd_path, outdir)
+    Base.include(Main, generated_path)
+    module_name = extract_generated_module_name(read(generated_path, String))
+    module_ref = Base.invokelatest(getproperty, Main, module_name)
+
+    xml_path = joinpath(outdir, "empty_attr.xml")
+    write(xml_path, """<tns:document xmlns:tns="EmptyAttr"><TestElement3 id="x"></TestElement3></tns:document>""")
+
+    loaded = Base.invokelatest(XmlStructLoader.load, xml_path, module_ref; validate = false)
+    te3 = Base.invokelatest(getproperty, loaded, :TestElement3)
+    @test getfield(te3, :__xml_attributes)["id"] == "x"
+    @test getfield(te3, :__validated) == false
 end
