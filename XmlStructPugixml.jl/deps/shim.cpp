@@ -1,6 +1,6 @@
-// Minimal C ABI shim over pugixml's C++ DOM, for benchmarking from Julia via ccall.
-// Not a production wrapper: just enough surface to parse a file, walk element
-// children, read attributes, and read leaf text content.
+// Minimal C ABI shim over pugixml's C++ DOM, for use from Julia via ccall. Just enough surface to
+// parse a file, walk element children, read attributes, read leaf text content, and write documents
+// back out.
 //
 // Handle model:
 //   - pugishim_parse_file returns an owning pugi::xml_document* (caller must
