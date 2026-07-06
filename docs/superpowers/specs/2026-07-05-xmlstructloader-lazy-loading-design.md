@@ -198,6 +198,18 @@ not assumed to just work because it's declared once somewhere.
   previously-silent bug rather than introducing a new one, incidentally fixed while adding lazy
   support.
 
+- **Choice-free, non-zero-field complex structs are now `mutable struct`, changing `==`/`hash`
+  semantics for `ReadAllData` (eager) callers too, not just `ReadOnAccess`.** Required by
+  `LazilyInitializedFields.jl`'s `@lazy` macro, which unconditionally disallows immutable structs.
+  `is_lazy_capable` (`XsdToStruct.jl/src/xsd_module_builder/xsd_module_builder_common.jl:142-145`)
+  already scopes this as narrowly as the feature allows: choice-bearing and zero-field complex
+  types are excluded and keep the old immutable `Base.@kwdef struct` codegen path unchanged
+  (`write_node_no_choice`'s `!is_lazy_capable` branch). Investigated at the final whole-branch
+  review's request for a narrower cut; none exists short of dropping `LazilyInitializedFields.jl`
+  entirely, which is this feature's foundation, not an implementation detail. Downstream code
+  relying on value-based equality or immutability of generated complex-type structs should be
+  re-audited before upgrading.
+
 ## Testing
 
 Three of the four touched packages (`AbstractXsdTypes.jl`, `XsdToStruct.jl`,
