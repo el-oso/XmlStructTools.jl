@@ -8,4 +8,4 @@ pugixml_jll = "ef860afa-341e-548b-93de-15e6b165854a"
 
 [compat]
 julia = "1.6"
-pugixml_jll = "1"
+pugixml_jll = "1.16"

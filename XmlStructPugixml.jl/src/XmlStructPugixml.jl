@@ -1,11 +1,11 @@
 module XmlStructPugixml
 
-const depsfile = joinpath(@__DIR__, "..", "deps", "deps.jl")
-if isfile(depsfile)
-    include(depsfile)
-else
-    error("XmlStructPugixml.jl is not built correctly - run `Pkg.build(\"XmlStructPugixml\")`.")
-end
+import pugixml_jll
+
+# Shipped as a second library product of pugixml_jll (see JuliaPackaging/Yggdrasil PR
+# JuliaPackaging/Yggdrasil#14133) rather than compiled locally at Pkg.build() time - no C++
+# compiler needed by end users.
+const libxmlstructpugixml = pugixml_jll.libxmlstructpugixmlshim
 
 export parse_file,
     parse_buffer,
