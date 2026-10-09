@@ -52,11 +52,16 @@ function compare_xml_files(file_path_1::AbstractString, file_path_2::AbstractStr
 end
 
 function compare_xml_elements(element_1::XMLElement, element_2::XMLElement)::Bool
-    if has_children(element_1)
-        # compare all children
-        child_iterator_1 = collect(child_elements(element_1))
+    if name(element_1) != name(element_2)
+        @info "Element $(name(element_1)) is $(name(element_2)) in the second file"
+        return false
+    end
+
+    child_iterator_1 = collect(child_elements(element_1))
+    child_iterator_2 = collect(child_elements(element_2))
+    # `has_children` also counts text, so a leaf is told apart by having no child elements.
+    if !isempty(child_iterator_1) || !isempty(child_iterator_2)
         n_children_1 = length(child_iterator_1)
-        child_iterator_2 = collect(child_elements(element_2))
         n_children_2 = length(child_iterator_2)
 
         if n_children_1 != n_children_2
@@ -76,9 +81,14 @@ function compare_xml_elements(element_1::XMLElement, element_2::XMLElement)::Boo
             end
         end
     else
-        # compare content
-        if content(element_1) != content(element_2)
-            @info "Content of $(name(element_1)) is different"
+        # Numbers compare by value: the writer prints a Float64 as Julia does, `20.0` for `20`.
+        content_1 = strip(content(element_1))
+        content_2 = strip(content(element_2))
+        number_1 = tryparse(Float64, content_1)
+        number_2 = tryparse(Float64, content_2)
+        same = isnothing(number_1) || isnothing(number_2) ? content_1 == content_2 : number_1 == number_2
+        if !same
+            @info "Content of $(name(element_1)) is different: $content_1 vs $content_2"
             return false
         end
     end

@@ -217,7 +217,7 @@ function write_node_with_choice(
     # Write additional method overrides for choice fields
     write_choice_outer_constructor(xsd_node, field_strings, choice_fields, xsd_module_builder, indent_level)
     writeln(xsd_module_builder, IOStruct)
-    write_choice_properties(name(xsd_node), choice_fields, xsd_module_builder, indent_level)
+    write_choice_properties(name(xsd_node), all_fields, choice_fields, xsd_module_builder, indent_level)
 
     return nothing
 end
@@ -354,26 +354,29 @@ end
 
 function write_choice_properties(
     parent_name::AbstractString,
+    all_fields,
     choice_fields::Vector{ChoiceFieldData},
     xsd_module_builder::XSDStructModuleBuilderType,
     indent_level::Int,
 )
-    full_field_names_list =
-        [":" * field.name for choice_field in choice_fields for field in choice_field.choice_options]
+    # A choice's members take the choice's place in the sequence: the writer writes elements in
+    # this order, so it must match the schema's.
+    property_names = String[]
+    for field in all_fields
+        if field isa ChoiceFieldData
+            append!(property_names, (":" * option.name for option in field.choice_options))
+        else
+            push!(property_names, ":" * field.name)
+        end
+    end
+    append!(property_names, (":__xml_attributes", ":__validated"))
 
     writeln(
         xsd_module_builder,
         IOStruct,
-        "Base.propertynames(x::$parent_name, private::Bool=false) = Tuple(append!(",
+        "Base.propertynames(x::$parent_name, private::Bool=false) = ($(join(property_names, ", ")))",
         indent_level = indent_level,
     )
-    writeln(
-        xsd_module_builder,
-        IOStruct,
-        "filter(s->!startswith(String(s), \"__$parent_name\"), collect(fieldnames($parent_name))),",
-        indent_level = indent_level + 1,
-    )
-    writeln(xsd_module_builder, IOStruct, "[$(join(full_field_names_list, ", "))]))", indent_level = indent_level + 1)
 
     choice_fields_tmp = deepcopy(choice_fields)
 
