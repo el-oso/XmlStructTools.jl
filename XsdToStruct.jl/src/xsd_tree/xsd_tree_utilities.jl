@@ -116,11 +116,13 @@ function create_SchemaTreeNode(;
     has_complex_nodes =
         (has_node_of_type(child_nodes, ComplexTreeNode) || has_node_of_type(group_nodes, ComplexTreeNode))
 
-    requires_TimeZones = has_xsd_type_node(child_nodes, "dateTime")
+    # A group's fields are written into the struct module as a child's are.
+    all_nodes = AbstractTreeNode[child_nodes; group_nodes]
+    requires_TimeZones = has_xsd_type_node(all_nodes, "dateTime")
     requires_Dates =
         requires_TimeZones ||
-        has_xsd_type_node(child_nodes, "date") ||
-        has_xsd_type_node(child_nodes, "time")
+        has_xsd_type_node(all_nodes, "date") ||
+        has_xsd_type_node(all_nodes, "time")
 
     return SchemaTreeNode(
         common_data = CommonNodeData(name = name, attributes = attributes),

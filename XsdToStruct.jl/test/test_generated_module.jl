@@ -49,6 +49,35 @@
         @test doc_type isa TestChoice.documentType
     end
 
+    @testset "test generated dateTime only in a group" begin
+        mktempdir() do dir
+            xsd_path = joinpath(dir, "group_datetime.xsd")
+            write(
+                xsd_path,
+                """
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:TestGroupDateTime="TestGroupDateTime"
+                    targetNamespace="TestGroupDateTime">
+                    <xs:element name="document" type="TestGroupDateTime:documentType"/>
+                    <xs:group name="stamps">
+                        <xs:sequence>
+                            <xs:element name="placed" type="xs:dateTime"/>
+                        </xs:sequence>
+                    </xs:group>
+                    <xs:complexType name="documentType">
+                        <xs:sequence>
+                            <xs:group ref="TestGroupDateTime:stamps"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:schema>
+                """,
+            )
+            generated = Base.include(Module(), xsd_to_struct_module(xsd_path, dir))
+            document_type = Base.invokelatest(getglobal, generated, :documentType)
+            document = Base.invokelatest(document_type; placed = Dates.DateTime(2026, 4, 1))
+            @test document.placed == DateTimeNs(Dates.DateTime(2026, 4, 1))
+        end
+    end
+
     @testset "test generated choice keywords convert" begin
         mktempdir() do dir
             xsd_path = joinpath(dir, "choice_conversion.xsd")
