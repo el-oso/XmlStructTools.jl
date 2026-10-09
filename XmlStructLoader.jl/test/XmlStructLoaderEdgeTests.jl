@@ -88,3 +88,11 @@ end
     end))
     @test XmlStructLoader.element_field_mapping(flat_module) == Dict(:Fields => :fields, Symbol("a-b") => :a_b)
 end
+
+@testset "Edge tests load - dateTime fraction digits" begin
+    @test XmlStructLoader.fraction_digit_count("2024-01-01T00:00:37") == 0
+    @test XmlStructLoader.fraction_digit_count("2024-01-01T00:00:37.1") == 1
+    @test XmlStructLoader.fraction_digit_count("2024-01-01T00:00:37.12+01:00") == 2
+    @test XmlStructLoader.fraction_digit_count("-0001-01-01T00:00:37.123456Z") == 6
+    @test XmlStructLoader.fraction_digit_count("2024-01-01") == 0
+end

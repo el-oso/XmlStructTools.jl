@@ -13,7 +13,13 @@ function name(node::Ptr{Cvoid})::String
     return isnothing(idx) ? raw : raw[(idx + 1):end]
 end
 
-content(node::Ptr{Cvoid})::String = strip(XmlStructPugixml.node_text(node))
+# Text without surrounding whitespace is returned as read: `strip` gives a view, and copying it
+# back to a `String` would allocate a second time for every element.
+function content(node::Ptr{Cvoid})::String
+    text = XmlStructPugixml.node_text(node)
+    (isempty(text) || !(isspace(first(text)) || isspace(last(text)))) && return text
+    return String(strip(text))
+end
 
 """
 	name_symbol(node::UnifiedXMLElement)::Symbol

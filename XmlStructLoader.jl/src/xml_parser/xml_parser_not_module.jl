@@ -73,7 +73,7 @@ function parse_xml_node_not_module(
     validate::Bool,
     default_value::Union{Nothing,DateTime,ZonedDateTime},
 )::Union{Nothing,DateTime,ZonedDateTime}
-    content_string = get_node_content(xml_node)
+    content_string = content(xml_node)
 
     if isempty(content_string)
         return default_value
@@ -105,15 +105,30 @@ end
 # Regex inspired by section 3.2.7.1 Lexical representation of
 # https://www.w3.org/TR/2004/REC-xmlschema-2-20041028/datatypes.html#dateTime
 const seconds_after_period_regex = r"^(-?\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.?)(\d*)(.*)$"
+# The digits after the seconds of "...THH:MM:SS[.fff]", counted without the allocations of a regex
+# match. A string of another shape is left to the date parser to reject.
+function fraction_digit_count(date_string::AbstractString)::Int
+    bytes = codeunits(date_string)
+    t = findfirst(==(UInt8('T')), bytes)
+    isnothing(t) && return 0
+    i = t + ncodeunits("THH:MM:SS")
+    i <= lastindex(bytes) && bytes[i] == UInt8('.') && (i += 1)
+    start = i
+    while i <= lastindex(bytes) && UInt8('0') <= bytes[i] <= UInt8('9')
+        i += 1
+    end
+    return i - start
+end
+
 @inline function truncate_seconds(date_string::AbstractString)::Tuple{String,Int}
     # Check the amount of seconds after the decimal point and truncate to three digits.
     # Also throw a warning if this occurs.
 
-    seconds_after_period_match = match(seconds_after_period_regex, date_string)
-    n_after_period = isnothing(seconds_after_period_match) ? 0 : seconds_after_period_match.captures[2] |> length
+    n_after_period = fraction_digit_count(date_string)
     n_seconds_digits = n_after_period + 2
 
     if (n_seconds_digits > 5)
+        seconds_after_period_match = match(seconds_after_period_regex, date_string)
         @warn (
             "dateTime element with $n_seconds_digits > 5 second digits, " *
             "anything below milliseconds will be cutoff."

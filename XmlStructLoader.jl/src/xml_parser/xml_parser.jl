@@ -34,5 +34,3 @@ function construct_xml_root_object(
     end
     return construct_from_fields(root_type, names, values, root_attributes, validate)
 end
-
-get_node_content(@nospecialize(xml_node::UnifiedXMLElement))::String = strip(content(xml_node))
