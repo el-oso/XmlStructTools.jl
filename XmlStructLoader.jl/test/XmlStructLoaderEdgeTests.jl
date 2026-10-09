@@ -97,6 +97,22 @@ end
     @test XmlStructLoader.fraction_digit_count("2024-01-01") == 0
 end
 
+@testset "Edge tests load - dateTime to the nanosecond" begin
+    DateTimeNs = XmlStructLoader.AbstractXsdTypes.DateTimeNs
+    parse_date = XmlStructLoader.parse_xml_date
+    base = DateTime(2022, 5, 10, 10, 22, 49, 152)
+
+    @test parse_date("2022-05-10T10:22:49.152") === DateTimeNs(base)
+    @test parse_date("2022-05-10T10:22:49.1525575") === DateTimeNs(base, 557_500)
+    @test parse_date("2022-05-10T10:22:49.152557501") === DateTimeNs(base, 557_501)
+    @test parse_date("2022-05-10T10:22:49.1525575+01:00") == DateTimeNs(ZonedDateTime(base, tz"UTC+1"), 557_500)
+    @test parse_date("2022-05-10T10:22:49.1525575Z") == DateTimeNs(ZonedDateTime(base, tz"UTC"), 557_500)
+    @test string(parse_date("2022-05-10T10:22:49.1525575Z")) == "2022-05-10T10:22:49.1525575Z"
+
+    cut = @test_logs (:warn, r"anything below nanoseconds is cut off") parse_date("2022-05-10T10:22:49.1525575019")
+    @test cut === DateTimeNs(base, 557_501)
+end
+
 Base.@kwdef struct BuilderProbe
     required::Int
     optional::Union{Nothing, String} = nothing

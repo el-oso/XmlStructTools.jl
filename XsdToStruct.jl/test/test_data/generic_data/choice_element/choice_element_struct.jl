@@ -16,10 +16,10 @@ end
 AbstractXsdTypes.defaults(::Type{TestComplexType1}) = (element2 = String("default"), )
 
 function TestComplexType1(;
-    element1::String,
-    choice1::Union{String, Nothing}=nothing,
-    choice2::Union{Float64, Nothing}=nothing,
-    element2::String,
+    element1,
+    choice1 = nothing,
+    choice2 = nothing,
+    element2,
     __xml_attributes::Union{Nothing, Dict{<:AbstractString, <:AbstractString}} = nothing,
     __validated::Bool = true)
 
@@ -80,9 +80,9 @@ struct TestComplexType2 <: AbstractXsdTypes.AbstractXSDComplex
 end
 
 function TestComplexType2(;
-    choice1::Union{String, Nothing}=nothing,
-    choice2::Union{Float64, Nothing}=nothing,
-    choice3::Union{TestComplexType2Types.choice3, Nothing}=nothing,
+    choice1 = nothing,
+    choice2 = nothing,
+    choice3 = nothing,
     __xml_attributes::Union{Nothing, Dict{<:AbstractString, <:AbstractString}} = nothing,
     __validated::Bool = true)
 
@@ -115,10 +115,10 @@ struct TestComplexType5 <: AbstractXsdTypes.AbstractXSDComplex
 end
 
 function TestComplexType5(;
-    choice1::Union{String, Nothing}=nothing,
-    choice2::Union{Float64, Nothing}=nothing,
-    choice3::Union{String, Nothing}=nothing,
-    choice4::Union{Float64, Nothing}=nothing,
+    choice1 = nothing,
+    choice2 = nothing,
+    choice3 = nothing,
+    choice4 = nothing,
     __xml_attributes::Union{Nothing, Dict{<:AbstractString, <:AbstractString}} = nothing,
     __validated::Bool = true)
 

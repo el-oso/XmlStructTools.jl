@@ -3,13 +3,14 @@ module TestDateTimeRestriction_struct
 using Reexport
 @reexport using Dates
 @reexport using TimeZones
+@reexport using AbstractXsdTypes: DateTimeNs
 import AbstractXsdTypes
 
 """
 An example of a dateTime based simple type without restriction facets.
 """
 Base.@kwdef struct TestSimpleType1 <: AbstractXsdTypes.AbstractXSDDateTime
-    value::Union{ZonedDateTime, DateTime}
+    value::Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}
     __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
     __validated::Bool = true
 end

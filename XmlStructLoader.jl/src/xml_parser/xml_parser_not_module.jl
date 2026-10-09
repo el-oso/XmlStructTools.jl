@@ -68,11 +68,11 @@ end
 
 function parse_xml_node_not_module(
     xml_node::UnifiedXMLElement,
-    ::Type{<:Union{DateTime,ZonedDateTime}},
+    ::Type{<:AbstractXsdTypes.DateTimeNs},
     module_ref::Module,
     validate::Bool,
-    default_value::Union{Nothing,DateTime,ZonedDateTime},
-)::Union{Nothing,DateTime,ZonedDateTime}
+    default_value::Union{Nothing,AbstractXsdTypes.DateTimeNs},
+)::Union{Nothing,AbstractXsdTypes.DateTimeNs}
     content_string = content(xml_node)
 
     if isempty(content_string)
@@ -87,11 +87,11 @@ end
 const timezone_regex = r"((\+|-)\d\d:\d\d)|Z"
 # Built once: a format given as a string is parsed into a `DateFormat` on every call.
 const zoned_date_formats = Tuple(DateFormat("yyyy-mm-ddTHH:MM:SS$(s)zzzzzz") for s in ("", ".s", ".ss", ".sss"))
-function parse_xml_date(date_string::AbstractString)::Union{DateTime,ZonedDateTime}
+function parse_xml_date(date_string::AbstractString)::AbstractXsdTypes.DateTimeNs
     timezone_match = match(timezone_regex, date_string)
     is_not_timezone_string = isnothing(timezone_match)
 
-    preparsed_string, n_after_period = truncate_seconds(date_string)
+    preparsed_string, n_after_period, nanoseconds = split_seconds(date_string)
 
     if is_not_timezone_string
         parsed_date = DateTime(preparsed_string, ISODateTimeFormat)
@@ -99,7 +99,7 @@ function parse_xml_date(date_string::AbstractString)::Union{DateTime,ZonedDateTi
         parsed_date = ZonedDateTime(preparsed_string, zoned_date_formats[n_after_period + 1])
     end
 
-    return parsed_date
+    return AbstractXsdTypes.DateTimeNs(parsed_date, nanoseconds)
 end
 
 # Regex inspired by section 3.2.7.1 Lexical representation of
@@ -120,26 +120,19 @@ function fraction_digit_count(date_string::AbstractString)::Int
     return i - start
 end
 
-@inline function truncate_seconds(date_string::AbstractString)::Tuple{String,Int}
-    # Check the amount of seconds after the decimal point and truncate to three digits.
-    # Also throw a warning if this occurs.
-
+# Splits the digits after the seconds into the milliseconds, left in the string for the date parser,
+# and the nanoseconds below them. Digits below a nanosecond are cut off with a warning.
+@inline function split_seconds(date_string::AbstractString)::Tuple{String,Int,Int}
     n_after_period = fraction_digit_count(date_string)
-    n_seconds_digits = n_after_period + 2
+    n_after_period <= 3 && return date_string, n_after_period, 0
 
-    if (n_seconds_digits > 5)
-        seconds_after_period_match = match(seconds_after_period_regex, date_string)
-        @warn (
-            "dateTime element with $n_seconds_digits > 5 second digits, " *
-            "anything below milliseconds will be cutoff."
-        ) maxlog = 1
-        truncated_after_period = seconds_after_period_match.captures[2][1:3]
-        truncated_string =
-            (seconds_after_period_match.captures[1] * truncated_after_period * seconds_after_period_match.captures[3])
-        n_after_period = 3
-    else
-        truncated_string = date_string
+    seconds_after_period_match = match(seconds_after_period_regex, date_string)
+    fraction = seconds_after_period_match.captures[2]
+    if n_after_period > 9
+        @warn "dateTime element with $n_after_period digits after the seconds, anything below nanoseconds is cut off." maxlog = 1
     end
-
-    return truncated_string, n_after_period
+    nanoseconds = parse(Int, rpad(fraction[4:min(end, 9)], 6, '0'))
+    millisecond_string =
+        seconds_after_period_match.captures[1] * fraction[1:3] * seconds_after_period_match.captures[3]
+    return millisecond_string, 3, nanoseconds
 end

@@ -70,7 +70,7 @@ const xsd_abstract_type_by_julia_type = Dict((
 	"Vector{UInt8}" => "$ABSTRACT_TYPE_PACKAGE.AbstractXSDBinary"))
 
 function get_supertype(type_string::AbstractString)
-	if type_string == "Union{ZonedDateTime, DateTime}"
+	if type_string == "Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}"
 		supertype_value = Dates.AbstractDateTime
 	elseif type_string == "Vector{UInt8}"
 		supertype_value = DenseVector{UInt8}
@@ -125,7 +125,7 @@ const JULIA_SUPER_TYPES = Dict(
     "String" => "AbstractString",
     "Float64" => "Number",
     "Bool" => "Bool",
-    "Union{ZonedDateTime, DateTime}" => "Dates.AbstractDateTime",
+    "Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}" => "Dates.AbstractDateTime",
     "Int64" => "Number",
     "UInt64" => "Number",
     "AbstractXsdTypes.AbstractXSDString" => "AbstractString",

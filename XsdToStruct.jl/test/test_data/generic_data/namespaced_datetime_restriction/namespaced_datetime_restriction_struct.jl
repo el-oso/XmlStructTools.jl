@@ -3,6 +3,7 @@ module TestNamespacedDateTimeRestriction_struct
 using Reexport
 @reexport using Dates
 @reexport using TimeZones
+@reexport using AbstractXsdTypes: DateTimeNs
 import AbstractXsdTypes
 
 """
@@ -20,7 +21,7 @@ export ISODate
 A dateTime based simple type with a namespace-prefixed restriction base.
 """
 Base.@kwdef struct ISODateTime <: AbstractXsdTypes.AbstractXSDDateTime
-    value::Union{ZonedDateTime, DateTime}
+    value::Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}
     __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
     __validated::Bool = true
 end

@@ -108,7 +108,7 @@ Each object records in `__validated` whether it was checked.
 | `xs:integer`, `xs:int` | `Int64` |
 | `xs:nonNegativeInteger`, `xs:positiveInteger` | `UInt64` |
 | `xs:boolean` | `Bool` |
-| `xs:dateTime` | `ZonedDateTime` with a zone offset, `DateTime` without |
+| `xs:dateTime` | `DateTimeNs{ZonedDateTime}` with a zone offset, `DateTimeNs{DateTime}` without |
 | `xs:date`, `xs:time` | `Date`, `Time` |
 | `xs:base64Binary` | `Vector{UInt8}`, decoded |
 | simple type with a restriction | a struct wrapping the value, checked on construction |

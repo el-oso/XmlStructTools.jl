@@ -3,6 +3,7 @@ module TestTypeInType_struct
 using Reexport
 @reexport using Dates
 @reexport using TimeZones
+@reexport using AbstractXsdTypes: DateTimeNs
 import AbstractXsdTypes
 
 """
@@ -39,7 +40,7 @@ module TestComplexType1Types
         Element_string::String
         Element_double::Float64
         Element_boolean::Bool
-        Element_dateTime::Union{ZonedDateTime, DateTime}
+        Element_dateTime::Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}
         __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
         __validated::Bool = true
     end
@@ -60,7 +61,7 @@ module TestComplexType1Types
         Element_string::String
         Element_double::Float64
         Element_boolean::Bool
-        Element_dateTime::Union{ZonedDateTime, DateTime}
+        Element_dateTime::Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}
         __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
         __validated::Bool = true
     end

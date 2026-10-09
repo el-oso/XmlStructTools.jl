@@ -5,6 +5,7 @@ using Logging
 using XmlStructLoader
 using XsdToStruct
 using Dates
+using TimeZones
 
 include("test_utilities.jl")
 include(joinpath("XmlStructLoaderGenericTests", "XmlStructLoaderGenericTests.jl"))

@@ -82,8 +82,9 @@ schema location.
 
 Values are written in the form Julia prints them. A `decimal` is held as a `Float64`, so `49.90`
 in a loaded document is written back as `49.9`. A date and time is written with its zone offset
-when it is a `ZonedDateTime`, and without one when it is a `DateTime`. A zero offset is written as
-`Z`, and the seconds carry no trailing zeros, as in the canonical form of XML Schema.
+when it wraps a `ZonedDateTime`, and without one when it wraps a `DateTime`, to the nanosecond. A
+zero offset is written as `Z`, and the seconds carry no trailing zeros, as in the canonical form of
+XML Schema.
 
 ## Objects from a lazy document
 

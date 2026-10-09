@@ -68,7 +68,7 @@ A few things to note in this output:
 - An element with `maxOccurs` above 1 becomes a `Vector`.
 - A choice is stored in one private field, `__Order_choice_1`, and its members are presented as
   properties of their own, of which at most one may be set. See [Generated types](types.md).
-- `xs:decimal` becomes `Float64`, and `xs:dateTime` becomes `Union{ZonedDateTime, DateTime}`.
+- `xs:decimal` becomes `Float64`, and `xs:dateTime` becomes `Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}`.
 - Every type has two more fields, `__xml_attributes` and `__validated`, which hold the element's
   XML attributes and whether the object was checked against the schema's restrictions.
 

@@ -3,13 +3,14 @@ module TestDateFormats_struct
 using Reexport
 @reexport using Dates
 @reexport using TimeZones
+@reexport using AbstractXsdTypes: DateTimeNs
 import AbstractXsdTypes
 
 """
 An example of a complex xsd type with a vector of date times.
 """
 Base.@kwdef struct TestComplexType1 <: AbstractXsdTypes.AbstractXSDComplex
-    Element_dateTime::Vector{Union{ZonedDateTime, DateTime}}
+    Element_dateTime::Vector{Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}}
     __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
     __validated::Bool = true
 end

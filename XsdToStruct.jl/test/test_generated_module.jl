@@ -49,6 +49,42 @@
         @test doc_type isa TestChoice.documentType
     end
 
+    @testset "test generated choice keywords convert" begin
+        mktempdir() do dir
+            xsd_path = joinpath(dir, "choice_conversion.xsd")
+            write(
+                xsd_path,
+                """
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:TestChoiceConversion="TestChoiceConversion"
+                    targetNamespace="TestChoiceConversion">
+                    <xs:element name="document" type="TestChoiceConversion:documentType"/>
+                    <xs:complexType name="documentType">
+                        <xs:sequence>
+                            <xs:element name="placed" type="xs:dateTime"/>
+                            <xs:choice>
+                                <xs:element name="amount" type="xs:double"/>
+                                <xs:element name="due" type="xs:dateTime"/>
+                            </xs:choice>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:schema>
+                """,
+            )
+            generated = Base.include(Module(), xsd_to_struct_module(xsd_path, dir))
+            document_type = Base.invokelatest(getglobal, generated, :documentType)
+            placed = Dates.DateTime(2026, 4, 1)
+
+            by_amount = Base.invokelatest(document_type; placed, amount = 22)
+            @test by_amount.placed == DateTimeNs(placed)
+            @test Base.invokelatest(getproperty, by_amount, :amount) === 22.0
+            @test isnothing(Base.invokelatest(getproperty, by_amount, :due))
+
+            by_due = Base.invokelatest(document_type; placed, due = ZonedDateTime(placed, tz"UTC"))
+            @test Base.invokelatest(getproperty, by_due, :due) isa DateTimeNs{ZonedDateTime}
+            @test_throws "Only one of amount or due" Base.invokelatest(document_type; placed, amount = 1, due = placed)
+        end
+    end
+
     @testset "test generated complex_content" begin
         include(joinpath(generic_data_dir, "complex_content", "complex_content.jl"))
         import .TestComplexContent

@@ -3,6 +3,7 @@ module XsdToStructTests
 using ReTest
 using Logging
 using XsdToStruct
+using Dates
 using TimeZones
 using AbstractXsdTypes
 

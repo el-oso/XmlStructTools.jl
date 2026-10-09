@@ -106,7 +106,8 @@ The members of a choice are read like fields; the one that is absent is `nothing
 (orders.order[1].email, orders.order[2].phone, orders.order[2].email)
 ```
 
-A date and time with a zone offset becomes a `ZonedDateTime`, one without becomes a `DateTime`:
+A date and time becomes a `DateTimeNs`, which keeps the digits below a millisecond. It wraps a
+`ZonedDateTime` when the text has a zone offset and a `DateTime` when it does not:
 
 ```@example orders
 (orders.order[1].placed, orders.order[2].placed)

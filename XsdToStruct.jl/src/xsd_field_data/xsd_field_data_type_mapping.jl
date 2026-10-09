@@ -18,7 +18,7 @@ const built_in_data_type_dict = Dict([
     ("string", "String"),
     ("double", "Float64"),
     ("boolean", "Bool"),
-    ("dateTime", "Union{ZonedDateTime, DateTime}"),
+    ("dateTime", "Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}"),
     ("date", "Date"),
     ("time", "Time"),
     ("base64Binary", "Vector{UInt8}"),

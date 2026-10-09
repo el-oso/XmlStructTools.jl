@@ -10,6 +10,7 @@ function write_struct_module_to_io(xsd_module_builder::XSDStructModuleBuilderTyp
         print(xsd_module_builder.io_struct, "@reexport using Dates\n")
         if xsd_module_builder.xsd_tree.requires_TimeZones
             print(xsd_module_builder.io_struct, "@reexport using TimeZones\n")
+            print(xsd_module_builder.io_struct, "@reexport using $ABSTRACT_TYPE_PACKAGE: DateTimeNs\n")
         end
     end
 
@@ -258,20 +259,19 @@ function write_choice_outer_constructor(
     return
 end
 
+# The keywords carry no types: the positional constructor converts each value to its field's type,
+# as the keyword constructor of a struct without a choice does.
 function inner_constructor_arguments(fields::Vector{AbstractFieldData}, field_strings::Vector{String})::Vector{String}
     string_vector = String[]
     for (field, field_string) in zip(fields, field_strings)
         if field isa ChoiceFieldData
-            matches = eachmatch(r"(Union{[\w.]+, Nothing})+", field_string)
-            for (sub_field, sub_field_match) in zip(field.choice_options, matches)
-                print_string = "$(sub_field.name)::"
-                print_string *= first(sub_field_match.captures)
-                print_string *= "=nothing"
-
-                push!(string_vector, print_string)
+            for sub_field in field.choice_options
+                push!(string_vector, "$(sub_field.name) = nothing")
             end
         else
-            push!(string_vector, field_string)
+            parts = split(field_string, "="; limit = 2)
+            field_name = strip(first(split(first(parts), "::")))
+            push!(string_vector, length(parts) == 1 ? field_name : "$field_name =$(last(parts))")
         end
     end
 
@@ -464,7 +464,7 @@ function generate_defaults_string(
         end
 
         # wrap default value with appropriate constructor
-        if field_data.julia_type == "Union{ZonedDateTime, DateTime}"
+        if field_data.julia_type == "Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}"
             defaults_value = construct_time_default_value(default_value)
         else
             defaults_value = "$(full_field_type)($(default_value))"
@@ -484,9 +484,9 @@ function construct_time_default_value(default_value::AbstractString)::String
     timezone_match = match(timezone_regex, default_value)
     is_not_timezone_string = isnothing(timezone_match)
     if is_not_timezone_string
-        defaults_value = "DateTime(\"$default_value\")"
+        defaults_value = "DateTimeNs(DateTime(\"$default_value\"))"
     else
-        defaults_value = "ZonedDateTime(\"$default_value\", \"yyyy-mm-ddTHH:MM:SSzzzzzz\")"
+        defaults_value = "DateTimeNs(ZonedDateTime(\"$default_value\", \"yyyy-mm-ddTHH:MM:SSzzzzzz\"))"
     end
 end
 

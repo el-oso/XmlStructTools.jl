@@ -22,7 +22,7 @@ function type_in_module(@nospecialize(T::Type), module_ref::Module)::Bool
 end
 
 """
-	type_in_module(::Type{<:Union{Date,DateTime,Time,ZonedDateTime}}, ::Module)
+	type_in_module(::Type{<:Union{Date,DateTime,Time,ZonedDateTime,DateTimeNs}}, ::Module)
 
 The temporal types a field can hold directly are never schema-generated, whatever module they are
 reached through.
@@ -32,7 +32,7 @@ Named one by one rather than as `Dates.AbstractTime`: a generated simple type fo
 of which are themselves `Dates.AbstractTime`, and excluding the whole hierarchy sends those
 generated types to the parser for types the module does not define.
 """
-type_in_module(::Type{<:Union{Date, DateTime, Time, ZonedDateTime}}, ::Module) = false
+type_in_module(::Type{<:Union{Date, DateTime, Time, ZonedDateTime, AbstractXsdTypes.DateTimeNs}}, ::Module) = false
 
 """
 	get_field_type(::Type{T}, field_specification::Union{Symbol, Int}) where T <: Any

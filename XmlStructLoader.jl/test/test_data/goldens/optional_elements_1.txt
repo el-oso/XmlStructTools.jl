@@ -64,13 +64,17 @@ documentType
       Element_simple2:
         nothing
       Element_simple3:
-        DateTime
-          instant:
-            UTInstant
-              periods:
-                Millisecond
-                  value:
-                    2952306666
+        DateTimeNs
+          datetime:
+            DateTime
+              instant:
+                UTInstant
+                  periods:
+                    Millisecond
+                      value:
+                        2952306666
+          nanoseconds:
+            0
       Element_simple4:
         nothing
       Element_simple5:

@@ -119,6 +119,20 @@ catch err
 end
 ```
 
+## Dates and times
+
+An `xs:dateTime` field holds a [`DateTimeNs`](@ref): a `DateTime`, or a
+`ZonedDateTime` when the value has a zone offset, together with the nanoseconds below its
+millisecond. It is a `Dates.AbstractDateTime`, so the usual accessors, arithmetic, comparison and
+rounding work on it, and a field takes a plain `DateTime` or `ZonedDateTime` as well:
+
+```@example types
+placed = Order(id = "C-1", placed = DateTime(2026, 4, 1), email = "a@example.com", line = Line[]).placed
+(placed, placed + Nanosecond(1500), string(placed + Nanosecond(1500)))
+```
+
+`DateTime(x)` gives the value without the nanoseconds.
+
 ## Defaults
 
 An element with a `default` attribute in the schema gets that value when it is absent. The defaults

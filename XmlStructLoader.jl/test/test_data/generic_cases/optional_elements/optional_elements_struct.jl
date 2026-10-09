@@ -3,6 +3,7 @@ module OptionalElements_struct
 using Reexport
 @reexport using Dates
 @reexport using TimeZones
+@reexport using AbstractXsdTypes: DateTimeNs
 import AbstractXsdTypes
 
 """
@@ -117,16 +118,16 @@ export TestComplexType5
 An example of a complex xsd type with optional dateTime elements.
 """
 Base.@kwdef struct TestComplexType6 <: AbstractXsdTypes.AbstractXSDComplex
-    Element_simple1::Union{Nothing, Union{ZonedDateTime, DateTime}} = nothing
-    Element_simple2::Union{Nothing, Union{ZonedDateTime, DateTime}} = nothing
-    Element_simple3::Union{ZonedDateTime, DateTime}
-    Element_simple4::Union{Nothing, Union{ZonedDateTime, DateTime}} = nothing
-    Element_simple5::Union{Nothing, Union{ZonedDateTime, DateTime}} = nothing
+    Element_simple1::Union{Nothing, Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}} = nothing
+    Element_simple2::Union{Nothing, Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}} = nothing
+    Element_simple3::Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}
+    Element_simple4::Union{Nothing, Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}} = nothing
+    Element_simple5::Union{Nothing, Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}} = nothing
     __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
     __validated::Bool = true
 end
 
-AbstractXsdTypes.defaults(::Type{TestComplexType6}) = (Element_simple1 = ZonedDateTime("0001-01-01T00:00:00+00:00", "yyyy-mm-ddTHH:MM:SSzzzzzz"), Element_simple3 = DateTime("0001-02-03T04:05:06.666"), Element_simple4 = ZonedDateTime("0999-08-07T06:55:44-03:22", "yyyy-mm-ddTHH:MM:SSzzzzzz"), Element_simple5 = ZonedDateTime("0004-05-06T07:08:09Z", "yyyy-mm-ddTHH:MM:SSzzzzzz"), )
+AbstractXsdTypes.defaults(::Type{TestComplexType6}) = (Element_simple1 = DateTimeNs(ZonedDateTime("0001-01-01T00:00:00+00:00", "yyyy-mm-ddTHH:MM:SSzzzzzz")), Element_simple3 = DateTimeNs(DateTime("0001-02-03T04:05:06.666")), Element_simple4 = DateTimeNs(ZonedDateTime("0999-08-07T06:55:44-03:22", "yyyy-mm-ddTHH:MM:SSzzzzzz")), Element_simple5 = DateTimeNs(ZonedDateTime("0004-05-06T07:08:09Z", "yyyy-mm-ddTHH:MM:SSzzzzzz")), )
 
 export TestComplexType6
 

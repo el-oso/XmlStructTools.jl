@@ -3,6 +3,7 @@ module TestComplexContent_struct
 using Reexport
 @reexport using Dates
 @reexport using TimeZones
+@reexport using AbstractXsdTypes: DateTimeNs
 import AbstractXsdTypes
 
 Base.@kwdef struct SimpleType1 <: AbstractXsdTypes.AbstractXSDFloat
@@ -37,7 +38,7 @@ Base.@kwdef struct TestComplexType1 <: AbstractXsdTypes.AbstractXSDComplex
     Element_double::Float64
     Element_boolean::Bool
     Element_decimal::Float64
-    Element_dateTime::Union{ZonedDateTime, DateTime}
+    Element_dateTime::Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}
     Element_integer::Int64
     Element_nonNegativeInteger::UInt64
     Element_positiveInteger::UInt64
@@ -56,7 +57,7 @@ Base.@kwdef struct TestComplexType2 <: AbstractXsdTypes.AbstractXSDComplex
     Element_double::Float64
     Element_boolean::Bool
     Element_decimal::Float64
-    Element_dateTime::Union{ZonedDateTime, DateTime}
+    Element_dateTime::Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}
     Element_integer::Int64
     Element_nonNegativeInteger::UInt64
     Element_positiveInteger::UInt64
@@ -77,7 +78,7 @@ Base.@kwdef struct TestComplexType3 <: AbstractXsdTypes.AbstractXSDComplex
     Element_double::Float64
     Element_boolean::Bool
     Element_decimal::Float64
-    Element_dateTime::Union{ZonedDateTime, DateTime}
+    Element_dateTime::Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}
     Element_integer::Int64
     Element_nonNegativeInteger::UInt64
     Element_positiveInteger::UInt64

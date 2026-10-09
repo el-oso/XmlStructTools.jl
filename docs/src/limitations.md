@@ -32,5 +32,4 @@ and an object that violates them is written.
 
 ## Times
 
-A `dateTime` with more than three digits after the seconds is cut to milliseconds, with a warning,
-because `DateTime` and `ZonedDateTime` hold milliseconds. The digits cut are not written back.
+A `dateTime` with more than nine digits after the seconds is cut to nanoseconds, with a warning.
