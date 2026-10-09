@@ -212,7 +212,7 @@ end
 
 @inline function generate_xml_string(xml_object::AbstractXsdTypes.AbstractXSDSimpleTypes)::String
     @debug "Generating XML string from $xml_object"
-    return string(xml_object.value)
+    return generate_xml_string(xml_object.value)
 end
 
 function generate_xml_string(xml_object::AbstractXsdTypes.AbstractXSDFloat)::String
@@ -240,6 +240,14 @@ end
 @inline function generate_xml_string(s::String)::String
     @debug "Generating XML string from $s"
     return s
+end
+
+# The canonical XSD form writes a zero offset as `Z` and a fraction without trailing zeros, where
+# `string` prints `+00:00` and pads milliseconds to three digits.
+function generate_xml_string(date_time::ZonedDateTime)::String
+    text = replace(string(date_time), r"(\.\d*?)0+(?=[+-]\d\d:\d\d$)" => s"\1")
+    text = replace(text, r"\.(?=[+-]\d\d:\d\d$)" => "")
+    return endswith(text, "+00:00") ? chop(text; tail = 6) * "Z" : text
 end
 
 @inline function generate_xml_string(x)::String

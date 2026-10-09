@@ -48,10 +48,10 @@
     </TestElement5>
 
     <TestElement6>
-        <Element_simple1>0001-01-01T00:00:00+00:00</Element_simple1>
+        <Element_simple1>0001-01-01T00:00:00Z</Element_simple1>
         <Element_simple2>2002-10-30T10:22:49-02:00</Element_simple2>
         <Element_simple3>0001-10-10T10:22:49.152</Element_simple3>
-        <Element_simple4>2002-10-10T10:22:49.152+00:00</Element_simple4>
-        <Element_simple5>0004-05-06T07:08:09+00:00</Element_simple5>
+        <Element_simple4>2002-10-10T10:22:49.152Z</Element_simple4>
+        <Element_simple5>0004-05-06T07:08:09Z</Element_simple5>
     </TestElement6>
 </OptionalElements:document>
