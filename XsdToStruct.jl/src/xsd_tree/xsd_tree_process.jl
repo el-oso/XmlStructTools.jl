@@ -1,5 +1,5 @@
 
-function process_xsd_tree!(xsd_tree::SchemaTreeNode)
+function process_xsd_tree!(xsd_tree::SchemaTreeNode, mapping::NameMapping = NameMapping(Dict()))
     for node_index in get_node_indices_of_type(xsd_tree, ExtensionTreeNode)
         resolve_extension_node!(xsd_tree, node_index)
     end
@@ -7,6 +7,9 @@ function process_xsd_tree!(xsd_tree::SchemaTreeNode)
     for node in get_nodes_of_type(xsd_tree, ComplexTreeNode)
         substitute_group!(node, xsd_tree.group_nodes)
     end
+
+    # After extensions and groups are resolved, which look nodes up by their xsd names.
+    apply_mapping!(xsd_tree, mapping)
 
     remove_simple_boolean!(xsd_tree)
 

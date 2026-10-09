@@ -12,7 +12,9 @@ function write_module(
     xsd_tree::SchemaTreeNode,
     module_file_name::AbstractString,
     output_dir::AbstractString,
-    xsd_filename::AbstractString,
+    xsd_filename::AbstractString;
+    root_name::AbstractString,
+    element_mapping::Dict{String, String} = Dict{String, String}(),
 )::Nothing
     full_output_dir = joinpath(output_dir, module_file_name)
     output_top_module_path = joinpath(full_output_dir, module_file_name * ".jl")
@@ -25,12 +27,14 @@ function write_module(
 
     open(output_top_module_path, "w") do io_top
         open(output_struct_module_path, "w") do io_struct
-            xsd_module_builder = XSDStructModuleBuilderType(
+            xsd_module_builder = XSDStructModuleBuilderType(;
                 indent_string = "    ",
                 xsd_tree = xsd_tree,
                 io_top = io_top,
                 io_struct = io_struct,
                 xsd_filename = xsd_filename,
+                root_name,
+                element_mapping,
             )
             write_top_module_to_io(xsd_module_builder)
             return write_struct_module_to_io(xsd_module_builder)

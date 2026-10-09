@@ -33,9 +33,11 @@ module __meta
 
     import ..DocumentationExample_struct
 
+    root_name = "houseDescription"
     root_type = DocumentationExample_struct.HouseDescriptionDocumentType
     xsd_filename = "documentation_example.xsd"
     XsdToStruct_version = "0.1.0"
+    XSDMapping = Dict{String, String}()
 
 end
 

@@ -34,9 +34,11 @@ module __meta
 
     import ..TestDateRestriction_struct
 
+    root_name = "document"
     root_type = TestDateRestriction_struct.documentType
     xsd_filename = "date_restriction.xsd"
     XsdToStruct_version = "0.1.0"
+    XSDMapping = Dict{String, String}()
 
 end
 

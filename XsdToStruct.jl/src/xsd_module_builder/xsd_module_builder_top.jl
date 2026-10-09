@@ -99,6 +99,7 @@ function write_meta_module_part(xsd_module_builder::XSDStructModuleBuilderType):
 
     write(xsd_module_builder, IOTop, "\n")
 
+    writeln(xsd_module_builder, IOTop, "root_name = $(repr(xsd_module_builder.root_name))", indent_level = 1)
     writeln(
         xsd_module_builder,
         IOTop,
@@ -107,10 +108,17 @@ function write_meta_module_part(xsd_module_builder::XSDStructModuleBuilderType):
     )
     writeln(xsd_module_builder, IOTop, "xsd_filename = \"$(xsd_module_builder.xsd_filename)\"", indent_level = 1)
     writeln(xsd_module_builder, IOTop, "XsdToStruct_version = \"$(XsdToStruct.XsdToStruct_VERSION)\"", indent_level = 1)
+    writeln(xsd_module_builder, IOTop, "XSDMapping = $(mapping_literal(xsd_module_builder.element_mapping))", indent_level = 1)
 
     write(xsd_module_builder, IOTop, "\n")
 
     writeln(xsd_module_builder, IOTop, "end")
 
     return nothing
+end
+
+# Sorted, so a module generated twice from the same input is the same text.
+function mapping_literal(mapping::Dict{String, String})::String
+    entries = ("$(repr(xsd_name)) => $(repr(julia_name))" for (xsd_name, julia_name) in sort!(collect(mapping)))
+    return "Dict{String, String}($(join(entries, ", ")))"
 end

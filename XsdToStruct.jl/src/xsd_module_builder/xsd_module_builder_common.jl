@@ -2,6 +2,9 @@
 Base.@kwdef struct XSDStructModuleBuilderType
     xsd_filename::AbstractString
     xsd_tree::SchemaTreeNode
+    # The root element's name in a document, which a renamed root field no longer carries.
+    root_name::String
+    element_mapping::Dict{String, String} = Dict{String, String}()
     io_top::IO
     io_struct::IO
     module_name::AbstractString = xsd_tree.common_data.name

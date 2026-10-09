@@ -67,6 +67,36 @@ generate_modules(xsd_locations, xsd_modules_path)
 
 In this case it will download the file from the given URL and save the output under the name given by the key in the dict, in this case "remote_file".
 
+## Renaming elements and types
+
+An XSD can use names that are not valid Julia identifiers, such as `single-record`, or names you would rather not see in
+Julia code. The `mapping` keyword renames them in the generated code. A flat dictionary renames element and type names
+alike:
+
+```julia
+xsd_to_struct_module(
+    xsd_path;
+    mapping = Dict("record-type" => "RecordType", "single-record" => "single_record"),
+)
+```
+
+A dictionary with the keys `"Fields"` and `"Types"` renames elements and types separately:
+
+```julia
+xsd_to_struct_module(
+    xsd_path;
+    mapping = Dict(
+        "Fields" => Dict("single-record" => "single_record"),
+        "Types" => Dict("record-type" => "RecordType"),
+    ),
+)
+```
+
+`generate_modules` takes the same keyword and applies it to every module. The element renames are kept in the generated
+module as `__meta.XSDMapping`, which XmlStructLoader uses to read each element into its renamed field and XmlStructWriter
+uses to write the field back under its element name. An element with an anonymous type gives that type the element's
+name, so rename the type together with the element.
+
 ## Using the generated structure definitions
 
 If you want to use the generated structure definitions you only have to include the file in the newly created folder with the same name as the original XSD file except with a ".jl" extension. So for our "documentation_example.xsd" this will be "documentation_example.jl". The generated module will always depend on "AbstractXsdTypes" and "Reexport" so these packages need to be available where you want to use the structure definitions. Optionally "Dates" and "TimeZones" are also needed. The docstring of the generated module will list all the needed dependencies for that generated module.

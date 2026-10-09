@@ -79,3 +79,8 @@ end
         @test tree2.base_name == "TestComplexType1"
     end
 end
+
+@testset "XsdToStruct - XSD reader - namespace with underscore" begin
+    xsd_tree = XsdToStruct.read_xsd(joinpath(edge_data_dir, "underscore_in_name.xsd"))
+    @test XsdToStruct.name(xsd_tree) == "TestName_1"
+end

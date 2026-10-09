@@ -25,7 +25,7 @@ include(joinpath("xsd_module_builder", "xsd_module_builder.jl"))
 export xsd_to_struct_module, generate_modules
 
 """
-    xsd_to_struct_module(xsd_path::AbstractString, output_dir::AbstractString)::String
+    xsd_to_struct_module(xsd_path::AbstractString, output_dir::AbstractString; mapping::AbstractDict = Dict())::String
 
 Generate Julia module corresponding to the given xsd file. The resulting Julia module will be placed in the given
 `output_dir`. The module generated will have the same name as the xsd namespace defined in the given xsd file.
@@ -34,6 +34,13 @@ the same name as the given xsd file but with a ".jl" extension instead of ".xsd"
 To use the generated module include the generated file that is returned by this function, and then use or import the
 module.
 
+The optional `mapping` argument renames elements and types of the xsd file in the generated code, for names which are
+not valid or not wanted in Julia. A flat `"xsd_name" => "julia_name"` dictionary renames elements and types alike;
+a dictionary with the keys `"Fields"` and `"Types"` renames them separately. The element renames are stored in the
+generated module as `__meta.XSDMapping`, through which XmlStructLoader and XmlStructWriter translate between element
+names and field names. Rename a type together with any element that has an anonymous type of the same name, or the
+two no longer match.
+
 # Examples
 ```julia-repl
 julia> using XsdToStruct
@@ -48,16 +55,33 @@ julia> xsd_to_struct_module(joinpath("path", "to", "file.xsd"), joinpath("output
 julia> include(joinpath("output", "dir", "file", "file.jl"))
 julia> import file_xsd_namespace
 ```
+or with a mapping of elements and types
+```julia-repl
+julia> using XsdToStruct
+julia> xsd_to_struct_module(
+    joinpath("path", "to", "file.xsd"),
+    joinpath("output", "dir");
+    mapping = Dict("Fields" => Dict("xsd_field" => "julia_field"), "Types" => Dict("xsd_type" => "julia_type")),
+)
+julia> include(joinpath("output", "dir", "file", "file.jl"))
+julia> using file_xsd_namespace
+```
 """
-function xsd_to_struct_module(xsd_path::AbstractString, output_dir::AbstractString)::String
+function xsd_to_struct_module(
+        xsd_path::AbstractString,
+        output_dir::AbstractString;
+        mapping::AbstractDict = Dict(),
+    )::String
     xsd_tree = read_xsd(xsd_path)
+    root_name = xsd_tree.root_field.name
+    name_mapping = NameMapping(mapping)
 
-    process_xsd_tree!(xsd_tree)
+    process_xsd_tree!(xsd_tree, name_mapping)
 
     module_file_name = xsd_path |> basename |> splitext |> first
     module_file_name = replace(module_file_name, forbidden_characters_regex => "_")
 
-    write_module(xsd_tree, module_file_name, output_dir, basename(xsd_path))
+    write_module(xsd_tree, module_file_name, output_dir, basename(xsd_path); root_name, element_mapping = name_mapping.fields)
 
     return joinpath(output_dir, module_file_name, module_file_name * ".jl")
 end
@@ -65,11 +89,12 @@ end
 const forbidden_characters_regex = r"[^0-9a-zA-Z_-]+"
 
 """
-    xsd_to_struct_module(xsd_path::AbstractString)::String
+    xsd_to_struct_module(xsd_path::AbstractString; mapping::AbstractDict = Dict())::String
 
 Generate Julia module corresponding to the given xsd file.
 The resulting Julia module will be placed in the same directory as the given xsd file.
 The path to the file with the generated code is given as a return value.
+The optional `mapping` argument is the one of `xsd_to_struct_module(xsd_path, output_dir)`.
 
 # Examples
 ```julia-repl
@@ -86,15 +111,21 @@ julia> include(joinpath("path", "to", "file", "file.jl"))
 julia> import file_xsd_namespace
 ```
 """
-xsd_to_struct_module(xsd_path::AbstractString)::String = xsd_to_struct_module(xsd_path, dirname(xsd_path))
+xsd_to_struct_module(xsd_path::AbstractString; mapping::AbstractDict = Dict())::String =
+    xsd_to_struct_module(xsd_path, dirname(xsd_path); mapping)
 
 """
-    generate_modules(xsd_locations::Dict{AbstractString, AbstractString}, xsd_modules_path::AbstractString)::Nothing
+    generate_modules(
+        xsd_locations::Dict{AbstractString, AbstractString},
+        xsd_modules_path::AbstractString;
+        mapping::AbstractDict = Dict(),
+    )::Nothing
 
 Generate modules from the given locations. The `xsd_locations` should be a dict which maps xsd names to their locations.
 The location can either be a path to a file, or a directory where the xsd file is located, or a URL where the xsd file
 can downloaded from. The generated modules are placed into the given `xsd_modules_path`. It is recomended for any
 packages that use generated modules to use this function in a build script to generate up to date modules on the fly.
+The optional `mapping` is applied to every module, as described for [`xsd_to_struct_module`](@ref).
 
 # Examples
 Let's assume we have a folder "xsd_files" which contains the xsd files: "file_1.xsd", "file_2.xsd", and "file_3.xsd",
@@ -114,7 +145,8 @@ julia> generate_modules(xsd_locations, xsd_modules_path)
 """
 function generate_modules(
         xsd_locations::Dict{<:AbstractString, <:AbstractString},
-        xsd_modules_path::AbstractString,
+        xsd_modules_path::AbstractString;
+        mapping::AbstractDict = Dict(),
     )::Nothing
     @info "Getting xsds and generating corresponding Julia modules."
 
@@ -133,7 +165,7 @@ function generate_modules(
         end
 
         @info "Generating $xsd_name"
-        xsd_to_struct_module(xsd_file_path, xsd_modules_path)
+        xsd_to_struct_module(xsd_file_path, xsd_modules_path; mapping)
     end
 
     return nothing

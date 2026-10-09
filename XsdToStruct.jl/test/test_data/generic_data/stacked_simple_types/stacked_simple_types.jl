@@ -33,9 +33,11 @@ module __meta
 
     import ..TestStackedSimple_struct
 
+    root_name = "document"
     root_type = TestStackedSimple_struct.documentType
     xsd_filename = "stacked_simple_types.xsd"
     XsdToStruct_version = "0.1.0"
+    XSDMapping = Dict{String, String}()
 
 end
 

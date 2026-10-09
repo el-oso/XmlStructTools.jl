@@ -33,9 +33,11 @@ module __meta
 
     import ..TestRootElementInlineType_struct
 
+    root_name = "document"
     root_type = TestRootElementInlineType_struct.document
     xsd_filename = "root_element_inline_type.xsd"
     XsdToStruct_version = "0.1.0"
+    XSDMapping = Dict{String, String}()
 
 end
 

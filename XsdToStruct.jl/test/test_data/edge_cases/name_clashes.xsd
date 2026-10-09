@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema" xmlns:TestNameClashes="TestNameClashes" targetNamespace="TestNameClashes">
+
+<element name="document" type="TestNameClashes:documentType"/>
+
+<complexType name="Number">
+    <annotation>
+        <documentation>An example of a complex xsd type with clashing name.</documentation>
+    </annotation>
+    <sequence>
+        <element name="Element_string" type="string"/>
+        <element name="Element_double" type="double"/>
+    </sequence>
+</complexType>
+
+<simpleType name="Float64">
+    <annotation>
+        <documentation>An example of a simple xsd type with clashing name.</documentation>
+    </annotation>
+    <restriction base="string">
+        <maxLength value="4"/>
+        <pattern value="([0-9A-Z]{4})?"/>
+    </restriction>
+</simpleType>
+
+<complexType name="TestComplex1">
+    <annotation>
+        <documentation>An example of a complex xsd type that has clashing name elements.</documentation>
+    </annotation>
+    <sequence>
+        <element name="Element_test" type="TestNameClashes:Float64"/>
+    </sequence>
+</complexType>
+
+<simpleType name="TestElement3">
+    <annotation>
+        <documentation>An example of a simple xsd type which is clashing type.</documentation>
+    </annotation>
+    <restriction base="string">
+        <maxLength value="4"/>
+        <pattern value="([0-9A-Z]{4})?"/>
+    </restriction>
+</simpleType>
+
+<complexType name="documentType">
+    <sequence>
+        <element name="TestElement1" type="TestNameClashes:TestComplex1"/>
+        <element name="TestElement2" type="TestNameClashes:Number"/>
+        <element name="TestElement3" type="TestNameClashes:TestElement3"/>
+    </sequence>
+</complexType>
+
+</schema>

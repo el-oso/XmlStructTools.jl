@@ -1,7 +1,7 @@
 
 abstract type AbstractTreeNode end
 
-Base.@kwdef struct CommonNodeData
+Base.@kwdef mutable struct CommonNodeData
     name::AbstractString
     sub_module::Union{Nothing,String} = nothing
     attributes::OptionalDictStringString = nothing
@@ -60,7 +60,7 @@ Base.@kwdef struct UnionTreeNode <: AbstractTreeNode
     union_nodes::Vector{AbstractTreeNode} = Vector{AbstractTreeNode}()
 end
 
-Base.@kwdef struct ExtensionTreeNode <: AbstractTreeNode
+Base.@kwdef mutable struct ExtensionTreeNode <: AbstractTreeNode
     common_data::CommonNodeData
     node_content::ComplexTreeNode
     base_name::String

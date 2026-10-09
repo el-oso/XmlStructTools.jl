@@ -35,9 +35,11 @@ module __meta
 
     import ..TestComplexAndSimple_struct
 
+    root_name = "document"
     root_type = TestComplexAndSimple_struct.documentType
     xsd_filename = "basic_types.xsd"
     XsdToStruct_version = "0.1.0"
+    XSDMapping = Dict{String, String}()
 
 end
 

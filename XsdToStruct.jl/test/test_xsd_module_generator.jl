@@ -15,9 +15,48 @@ end
 
 # edge cases
 @testset "xsd reader - edge cases" begin
-    for test_file in get_test_files(edge_data_dir)
+    @testset "xsd reader - edge cases - broken cases - $(basename(test_file))" for test_file in
+        get_test_files(joinpath(edge_data_dir, "broken_cases"))
         @test_throws ErrorException xsd_to_struct_module(test_file * ".xsd", output_dir)
     end
+
+    @testset "xsd reader - edge cases - name_clashes" begin
+        file_name = "name_clashes"
+        output_path = xsd_to_struct_module(
+            joinpath(edge_data_dir, "$file_name.xsd"),
+            output_dir;
+            mapping = Dict(
+                "Fields" => Dict("Number" => "Number_mapped", "Float64" => "Float64_mapped"),
+                "Types" => Dict(
+                    "TestElement3" => "TestElement3_mapped",
+                    "Number" => "Number_mapped",
+                    "Float64" => "Float64_mapped",
+                ),
+            ),
+        )
+        @test compare_all_text_files(dirname(output_path), joinpath(edge_data_dir, file_name))
+    end
+end
+
+@testset "xsd reader - name mapping" begin
+    flat = XsdToStruct.NameMapping(Dict("a" => "b"))
+    @test flat.fields == flat.types == Dict("a" => "b")
+
+    nested = XsdToStruct.NameMapping(Dict("Fields" => Dict("a" => "b"), "Types" => Dict("C" => "D")))
+    @test nested.fields == Dict("a" => "b")
+    @test nested.types == Dict("C" => "D")
+
+    types_only = XsdToStruct.NameMapping(Dict("Fields" => Dict(), "Types" => Dict("C" => "D")))
+    @test isempty(types_only.fields)
+    @test XsdToStruct.NameMapping(Dict("Types" => Dict("C" => "D"))).types == Dict("C" => "D")
+
+    @test_throws "may hold only those two keys" XsdToStruct.NameMapping(Dict("Fields" => Dict(), "Number" => "N"))
+
+    @test XsdToStruct.map_xsd_name("ns:C", nested.types) == "ns:D"
+    @test XsdToStruct.map_xsd_name("C", nested.types) == "D"
+    @test XsdToStruct.map_xsd_name("ns:E", nested.types) == "ns:E"
+    @test XsdToStruct.map_sub_module("CTypes.ETypes", nested.types) == "DTypes.ETypes"
+    @test isnothing(XsdToStruct.map_sub_module(nothing, nested.types))
 end
 
 # specific examples

@@ -33,9 +33,11 @@ module __meta
 
     import ..TestList_struct
 
+    root_name = "document"
     root_type = TestList_struct.documentType
     xsd_filename = "list_content.xsd"
     XsdToStruct_version = "0.1.0"
+    XSDMapping = Dict{String, String}()
 
 end
 

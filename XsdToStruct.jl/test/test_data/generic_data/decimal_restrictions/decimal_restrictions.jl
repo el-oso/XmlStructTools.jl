@@ -33,9 +33,11 @@ module __meta
 
     import ..TestDecimalRestrictions_struct
 
+    root_name = "document"
     root_type = TestDecimalRestrictions_struct.documentType
     xsd_filename = "decimal_restrictions.xsd"
     XsdToStruct_version = "0.1.0"
+    XSDMapping = Dict{String, String}()
 
 end
 
