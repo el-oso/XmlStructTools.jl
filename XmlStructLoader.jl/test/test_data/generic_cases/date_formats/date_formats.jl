@@ -35,9 +35,11 @@ module __meta
 
     import ..TestDateFormats_struct
 
+    root_name = "document"
     root_type = TestDateFormats_struct.documentType
     xsd_filename = "date_formats.xsd"
     XsdToStruct_version = "0.1.0"
+    XSDMapping = Dict{String, String}()
 
 end
 

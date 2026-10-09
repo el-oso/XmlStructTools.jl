@@ -35,9 +35,11 @@ module __meta
 
     import ..OptionalElements_struct
 
+    root_name = "document"
     root_type = OptionalElements_struct.documentType
     xsd_filename = "optional_elements.xsd"
     XsdToStruct_version = "0.1.0"
+    XSDMapping = Dict{String, String}()
 
 end
 

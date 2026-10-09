@@ -23,7 +23,6 @@ function construct_xml_root_object(
     )
     root_type = module_ref.__meta.root_type
     root_name = name(xml_root)
-    root_attributes["__root_name"] = root_name
 
     @debug "Constructing root object of type $root_type from node $root_name with validate=$validate"
 

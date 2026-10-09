@@ -1,7 +1,7 @@
 """
     module TestComplexAndSimple
 
-This module was generated with XsdToStruct version 0.1.0 from "basic_types.xsd".
+This module was generated with XsdToStruct version 0.1.0 from "root_attributes.xsd".
 All generated types are exported by this module and some meta data is included in the submodule __meta.
 
 In order to use this module the following dependencies need to be installed:
@@ -13,12 +13,12 @@ In order to use this module the following dependencies need to be installed:
 This module can be used/import as follows:
 
 ```julia
-include("path/to/basic_types.jl")
+include("path/to/root_attributes.jl")
 using .TestComplexAndSimple
 ```
 or:
 ```julia
-include("path/to/basic_types.jl")
+include("path/to/root_attributes.jl")
 import .TestComplexAndSimple
 ```
 """
@@ -28,7 +28,7 @@ using Reexport
 
 @reexport using AbstractXsdTypes
 
-include("basic_types_struct.jl")
+include("root_attributes_struct.jl")
 @reexport using .TestComplexAndSimple_struct
 
 module __meta
@@ -37,7 +37,7 @@ module __meta
 
     root_name = "document"
     root_type = TestComplexAndSimple_struct.documentType
-    xsd_filename = "basic_types.xsd"
+    xsd_filename = "root_attributes.xsd"
     XsdToStruct_version = "0.1.0"
     XSDMapping = Dict{String, String}()
 

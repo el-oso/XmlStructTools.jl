@@ -168,7 +168,6 @@ function lazyload(xml_path::AbstractString, module_ref::Module; validate::Bool =
     xml_root = XmlStructPugixml.root(doc_ptr)
     root_type = module_ref.__meta.root_type
     root_attributes = getattributes_dict(xml_root)
-    root_attributes["__root_name"] = name(xml_root)
     field_names = _public_fieldnames(root_type)
     return LazyDocument{root_type}(
         handle,
@@ -255,7 +254,7 @@ function _build_lazy_field(doc::LazyDocument{T}, name::Symbol) where {T}
     validate = getfield(doc, :_validate)
     field_type = get_base_field_type(T, name)
     default_value = get(AbstractXsdTypes.defaults(T), name, nothing)
-    nodes = _child_nodes_named(getfield(doc, :_root), name)
+    nodes = _child_nodes_named(getfield(doc, :_root), name, element_field_mapping(module_ref))
 
     # No element of that name: the field's value is whatever the eager object would hold, which
     # only the root type's own constructor knows, so build the root and read it from there.
@@ -289,11 +288,11 @@ function _deferred_child(doc::LazyDocument, @nospecialize(T::Type), node::Ptr{Cv
     )
 end
 
-function _child_nodes_named(raw::Ptr{Cvoid}, name::Symbol)
+function _child_nodes_named(raw::Ptr{Cvoid}, name::Symbol, renames::Dict{Symbol, Symbol})
     nodes = Ptr{Cvoid}[]
     child = XmlStructPugixml.first_child_element(raw)
     while child != C_NULL
-        name_symbol(child) === name && push!(nodes, child)
+        mapped_field_symbol(name_symbol(child), renames) === name && push!(nodes, child)
         child = XmlStructPugixml.next_sibling_element(child)
     end
     return nodes

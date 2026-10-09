@@ -38,3 +38,30 @@ generic_test_files = get_test_files(generic_data_dir)
         end
     end
 end
+
+# A module generated with renames writes each renamed field under its element name.
+@testset "writing - renamed elements" begin
+    mapping_data_dir = joinpath(dirname(generic_data_dir), "mapping_cases")
+    module_path = xsd_to_struct_module(
+        joinpath(mapping_data_dir, "renamed_elements.xsd"),
+        output_dir;
+        mapping = Dict(
+            "record-type" => "RecordType",
+            "single-record" => "single_record",
+            "repeated-record" => "repeated_record",
+            "Element-string" => "element_string",
+            "Element-double" => "element_double",
+        ),
+    )
+    xml_path = joinpath(mapping_data_dir, "renamed_elements.xml")
+    module_ref = XmlStructLoader.import_module_from_xml(xml_path, dirname(module_path))
+    xml_loaded = load(xml_path, module_ref)
+
+    output_path = joinpath(output_dir, "renamed_elements.xml")
+    write_xml(xml_loaded, output_path)
+    @test compare_xml_files(xml_path, output_path)
+
+    named_output_path = joinpath(output_dir, "renamed_elements_named_root.xml")
+    write_xml(xml_loaded, "document", named_output_path)
+    @test compare_xml_files(xml_path, named_output_path)
+end

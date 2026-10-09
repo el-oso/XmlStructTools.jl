@@ -33,9 +33,11 @@ module __meta
 
     import ..TestChoice_struct
 
+    root_name = "document"
     root_type = TestChoice_struct.documentType
     xsd_filename = "choice_element.xsd"
     XsdToStruct_version = "0.1.0"
+    XSDMapping = Dict{String, String}()
 
 end
 

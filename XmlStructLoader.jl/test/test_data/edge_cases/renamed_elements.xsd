@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema" xmlns:TestRenamedElements="TestRenamedElements" targetNamespace="TestRenamedElements">
+
+<element name="document" type="TestRenamedElements:documentType"/>
+
+<complexType name="record-type">
+    <annotation>
+        <documentation>A complex type whose name and element names are not Julia identifiers.</documentation>
+    </annotation>
+    <sequence>
+        <element name="Element-string" type="string"/>
+        <element name="Element-double" type="double"/>
+    </sequence>
+</complexType>
+
+<complexType name="documentType">
+    <sequence>
+        <element name="single-record" type="TestRenamedElements:record-type"/>
+        <element name="repeated-record" type="TestRenamedElements:record-type" maxOccurs="unbounded"/>
+        <element name="plain" type="string"/>
+    </sequence>
+</complexType>
+
+</schema>

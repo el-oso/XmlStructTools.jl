@@ -15,9 +15,10 @@ function _child_fields(
     )
     kw = Dict{Symbol, Any}()
     field_defaults = AbstractXsdTypes.defaults(T)
+    renames = element_field_mapping(module_ref)
     child = XmlStructPugixml.first_child_element(raw)
     while child != C_NULL
-        field_symbol = name_symbol(child)
+        field_symbol = mapped_field_symbol(name_symbol(child), renames)
         field_type = get_base_field_type(T, field_symbol)
         default_value = get(field_defaults, field_symbol, nothing)
 

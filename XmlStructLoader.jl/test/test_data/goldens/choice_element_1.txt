@@ -50,7 +50,6 @@ documentType
       __validated:
         true
   __xml_attributes:
-    "__root_name" => "document"
     "xmlns:TestChoice" => "TestChoice"
     "xmlns:xsi" => "http://www.w3.org/2001/XMLSchema-instance"
     "xsi:schemaLocation" => "TestChoice choice_element.xsd"

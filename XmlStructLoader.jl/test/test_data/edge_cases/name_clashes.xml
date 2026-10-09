@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<TestNameClashes:document xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="TestNameClashes name_clashes.xsd" xmlns:TestNameClashes="TestNameClashes">
+    <TestElement1>
+        <Element_test>INLJ</Element_test>
+    </TestElement1>
+    <TestElement2>
+        <Element_string>yutyutu</Element_string>
+        <Element_double>54587.98</Element_double>
+    </TestElement2>
+</TestNameClashes:document>

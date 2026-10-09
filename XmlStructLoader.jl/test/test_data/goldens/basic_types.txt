@@ -114,7 +114,6 @@ documentType
       __validated:
         true
   __xml_attributes:
-    "__root_name" => "document"
     "xmlns:TestComplexAndSimple" => "TestComplexAndSimple"
     "xmlns:xsi" => "http://www.w3.org/2001/XMLSchema-instance"
     "xsi:schemaLocation" => "TestComplexAndSimple basic_types.xsd"

@@ -35,9 +35,11 @@ module __meta
 
     import ..TestRootElementFirst_struct
 
+    root_name = "document"
     root_type = TestRootElementFirst_struct.documentType
     xsd_filename = "root_element_on_first_line.xsd"
     XsdToStruct_version = "0.1.0"
+    XSDMapping = Dict{String, String}()
 
 end
 

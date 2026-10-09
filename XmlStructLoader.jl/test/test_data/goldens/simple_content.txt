@@ -18,7 +18,6 @@ documentType
       __validated:
         true
   __xml_attributes:
-    "__root_name" => "document"
     "xmlns:TestSimpleContent" => "TestSimpleContent"
     "xmlns:xsi" => "http://www.w3.org/2001/XMLSchema-instance"
     "xsi:schemaLocation" => "TestSimpleContent simple_content.xsd"

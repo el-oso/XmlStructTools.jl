@@ -33,9 +33,11 @@ module __meta
 
     import ..TestOutOfOrder_struct
 
+    root_name = "document"
     root_type = TestOutOfOrder_struct.documentType
     xsd_filename = "type_ordering.xsd"
     XsdToStruct_version = "0.1.0"
+    XSDMapping = Dict{String, String}()
 
 end
 

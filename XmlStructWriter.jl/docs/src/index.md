@@ -92,7 +92,6 @@ xml_attributes = Dict(
     "xmlns:xsi"=>"http://www.w3.org/2001/XMLSchema-instance",
     "xsi:schemaLocation"=>"ExampleSchema Example.xsd",
     "xmlns:ExampleSchema"=>"ExampleSchema",
-    "__root_name"=>"document"
 )
 
 document = documentType(

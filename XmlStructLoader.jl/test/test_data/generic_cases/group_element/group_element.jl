@@ -33,9 +33,11 @@ module __meta
 
     import ..TestGroup_struct
 
+    root_name = "document"
     root_type = TestGroup_struct.documentType
     xsd_filename = "group_element.xsd"
     XsdToStruct_version = "0.1.0"
+    XSDMapping = Dict{String, String}()
 
 end
 

@@ -103,3 +103,30 @@ function get_base_field_type(@nospecialize(T::Type), field_symbol::Symbol)
 
     return field_type
 end
+
+"""
+	element_field_mapping(module_ref::Module)::Dict{Symbol,Symbol}
+
+The element names `module_ref` renamed when it was generated, mapped to the field names that hold
+them: its `__meta.XSDMapping` as `Symbol`s. Empty for a module generated without that mapping.
+"""
+function element_field_mapping(module_ref::Module)::Dict{Symbol, Symbol}
+    lock(element_field_cache_lock)
+    try
+        return get!(element_field_cache, module_ref) do
+            # Read in the latest world: the module may have been included after this load started.
+            meta = Base.invokelatest(getglobal, module_ref, :__meta)
+            Base.invokelatest(isdefined, meta, :XSDMapping) || return Dict{Symbol, Symbol}()
+            mapping = Base.invokelatest(getglobal, meta, :XSDMapping)
+            return Dict{Symbol, Symbol}(Symbol(element) => Symbol(field) for (element, field) in mapping)
+        end
+    finally
+        unlock(element_field_cache_lock)
+    end
+end
+
+const element_field_cache = IdDict{Module, Dict{Symbol, Symbol}}()
+const element_field_cache_lock = ReentrantLock()
+
+mapped_field_symbol(element_symbol::Symbol, mapping::Dict{Symbol, Symbol})::Symbol =
+    isempty(mapping) ? element_symbol : get(mapping, element_symbol, element_symbol)

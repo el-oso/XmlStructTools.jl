@@ -48,7 +48,6 @@ documentType
       __validated:
         true
   __xml_attributes:
-    "__root_name" => "document"
     "xmlns:TestDecimalRestrictions" => "TestDecimalRestrictions"
     "xmlns:xsi" => "http://www.w3.org/2001/XMLSchema-instance"
     "xsi:schemaLocation" => "TestDecimalRestrictions decimal_restrictions.xsd"
