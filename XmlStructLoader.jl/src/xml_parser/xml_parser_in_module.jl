@@ -1,8 +1,10 @@
 """
 	_child_fields(T, raw, module_ref, validate)
 
-The constructor arguments for one complex element of type `T`: every child element under its
-field name, with repeated elements of a `Vector`-typed field accumulated in document order.
+The constructor arguments for one complex element of type `T`, as field names and their values in
+matching order: every child element under its field name, with repeated elements of a
+`Vector`-typed field accumulated in document order. Any other field that repeats appears twice in
+`names`, which the keyword constructor rejects as a duplicate name.
 
 Siblings are a loop and only nesting recurses, so the call depth is the document's nesting depth
 and not its element count: a flat document with 120,000 sibling records descends one level.
@@ -13,7 +15,8 @@ function _child_fields(
         module_ref::Module,
         validate::Bool,
     )
-    kw = Dict{Symbol, Any}()
+    names = Symbol[]
+    values = Any[]
     field_defaults = AbstractXsdTypes.defaults(T)
     renames = element_field_mapping(module_ref)
     child = XmlStructPugixml.first_child_element(raw)
@@ -27,20 +30,37 @@ function _child_fields(
         # element and have each byte parsed from the whole base64 text.
         if field_type <: AbstractVector && !(field_type <: AbstractVector{UInt8})
             element = construct_element(eltype(field_type), child, default_value, module_ref, validate)
-            if haskey(kw, field_symbol)
-                push!(kw[field_symbol], element)
-            else
+            index = findfirst(isequal(field_symbol), names)
+            if isnothing(index)
                 elements = field_type()
                 push!(elements, element)
-                kw[field_symbol] = elements
+                push!(names, field_symbol)
+                push!(values, elements)
+            else
+                push!(values[index], element)
             end
         else
-            kw[field_symbol] = construct_element(field_type, child, default_value, module_ref, validate)
+            push!(names, field_symbol)
+            push!(values, construct_element(field_type, child, default_value, module_ref, validate))
         end
 
         child = XmlStructPugixml.next_sibling_element(child)
     end
-    return kw
+    return names, values
+end
+
+"""
+	construct_from_fields(T, names, values, xml_attributes, validate)
+
+Call the keyword constructor of `T` with the fields from [`_child_fields`](@ref).
+
+The keyword arguments are built as one `NamedTuple` rather than splatted from a dictionary,
+whose run-time conversion to a `NamedTuple` costs more than building the `NamedTuple` directly.
+"""
+function construct_from_fields(@nospecialize(T::Type), names::Vector{Symbol}, values::Vector{Any}, xml_attributes, validate::Bool)
+    push!(names, :__xml_attributes, :__validated)
+    push!(values, xml_attributes, validate)
+    return Core.kwcall(NamedTuple{Tuple(names)}(Tuple(values)), T)
 end
 
 """
@@ -60,8 +80,8 @@ function construct_element(
         validate::Bool,
     ) where {T}
     if haschildren(raw)
-        kw = _child_fields(T, raw, module_ref, validate)
-        return T(; __xml_attributes = getattributes_dict(raw), __validated = validate, kw...)
+        names, values = _child_fields(T, raw, module_ref, validate)
+        return construct_from_fields(T, names, values, getattributes_dict(raw), validate)
     end
 
     type_in_module(T, module_ref) ||

@@ -27,18 +27,12 @@ function construct_xml_root_object(
     @debug "Constructing root object of type $root_type from node $root_name with validate=$validate"
 
     # recurse through child nodes
-    child_object_dict = _child_fields(root_type, xml_root, module_ref, validate)
-
-    # add xml_attributes and validate
-    merge!(child_object_dict, Dict(:__xml_attributes => root_attributes, :__validated => validate))
-    # construct object with child objects
+    names, values = _child_fields(root_type, xml_root, module_ref, validate)
     @debug begin
-        child_string = join(["$key =>\n$value" for (key, value) in child_object_dict], "\n")
+        child_string = join(["$key =>\n$value" for (key, value) in zip(names, values)], "\n")
         "Constructing root element from children:\n$child_string"
     end
-    constructed_object = root_type(; child_object_dict...)
-
-    return constructed_object
+    return construct_from_fields(root_type, names, values, root_attributes, validate)
 end
 
 get_node_content(@nospecialize(xml_node::UnifiedXMLElement))::String = strip(content(xml_node))
