@@ -30,12 +30,7 @@ Only the numeric facets are checked: `minInclusive`, `maxInclusive`, `minExclusi
 `maxLength`, `pattern` and `enumeration` are not checked, so a document that violates them loads,
 and an object that violates them is written.
 
-## Writing
-
-The writer writes the members of a choice after the other elements of their type, rather than in
-the position the schema's sequence gives them. For a schema whose choice is not the last item of
-its sequence, the written document does not follow the schema.
-
 ## Times
 
-A `dateTime` with more than three digits after the seconds is cut to milliseconds, with a warning.
+A `dateTime` with more than three digits after the seconds is cut to milliseconds, with a warning,
+because `DateTime` and `ZonedDateTime` hold milliseconds. The digits cut are not written back.
