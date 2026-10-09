@@ -85,7 +85,8 @@ end
 # Regex inspired by section 3.2.7.3 Timezones of
 # https://www.w3.org/TR/2004/REC-xmlschema-2-20041028/datatypes.html#dateTime
 const timezone_regex = r"((\+|-)\d\d:\d\d)|Z"
-const formatting_strings = map(s -> "yyyy-mm-ddTHH:MM:SS$(s)zzzzzz", ["", ".s", ".ss", ".sss"])
+# Built once: a format given as a string is parsed into a `DateFormat` on every call.
+const zoned_date_formats = Tuple(DateFormat("yyyy-mm-ddTHH:MM:SS$(s)zzzzzz") for s in ("", ".s", ".ss", ".sss"))
 function parse_xml_date(date_string::AbstractString)::Union{DateTime,ZonedDateTime}
     timezone_match = match(timezone_regex, date_string)
     is_not_timezone_string = isnothing(timezone_match)
@@ -95,7 +96,7 @@ function parse_xml_date(date_string::AbstractString)::Union{DateTime,ZonedDateTi
     if is_not_timezone_string
         parsed_date = DateTime(preparsed_string, ISODateTimeFormat)
     else
-        parsed_date = ZonedDateTime(preparsed_string, formatting_strings[n_after_period + 1])
+        parsed_date = ZonedDateTime(preparsed_string, zoned_date_formats[n_after_period + 1])
     end
 
     return parsed_date
