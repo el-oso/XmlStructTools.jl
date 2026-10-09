@@ -11,7 +11,7 @@ makedocs(;
     format = DocumenterVitepress.MarkdownVitepress(;
         repo = REPO,
         devurl = "dev",
-        deploy_url = "el-oso.github.io/XmlStructTools.jl",
+        deploy_url = "https://el-oso.github.io/XmlStructTools.jl",
         inventory_version = string(pkgversion(XmlStructLoader)),
     ),
     pages = [
