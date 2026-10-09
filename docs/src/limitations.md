@@ -33,3 +33,5 @@ and an object that violates them is written.
 ## Times
 
 A `dateTime` with more than nine digits after the seconds is cut to nanoseconds, with a warning.
+The difference of two `DateTimeNs` values is in nanoseconds, which span about 292 years; a longer
+difference throws an `OverflowError`. Rounding below a millisecond takes only steps that divide it.
