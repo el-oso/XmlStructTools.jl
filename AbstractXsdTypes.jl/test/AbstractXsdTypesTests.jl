@@ -18,7 +18,8 @@ include(joinpath("conversion_tests", "conversion_tests.jl"))
 include(joinpath("mathematics_functions_tests", "mathematics_functions_tests.jl"))
 
 @testset "doctest" begin
-    Documenter.doctest(AbstractXsdTypes)
+    # The manual is the repository-wide site in docs/, whose build runs its own doctests.
+    Documenter.doctest(AbstractXsdTypes; manual = false)
 end
 
 end

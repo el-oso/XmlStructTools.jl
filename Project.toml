@@ -8,4 +8,5 @@ projects = [
     "XmlStructLoader.jl",
     "XmlStructWriter.jl",
     "XmlStructPugixml.jl",
+    "docs",
 ]

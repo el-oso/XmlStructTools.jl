@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  documenter-XmlStructTools:
+  documenter:
     permissions:
       contents: write
       pull-requests: read
@@ -16,53 +16,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      # The docs environment is a member of the repository's Pkg workspace, which resolves the
+      # unregistered sibling packages by path and needs Julia 1.12 or later.
       - uses: julia-actions/setup-julia@v3
         with:
-          version: '1.10'
+          version: '1'
       - uses: julia-actions/cache@v3
       - name: Install dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.instantiate()'
       - name: Build and deploy
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
         run: julia --project=docs/ docs/make.jl
-  call-documenter-AbstractXsdTypes:
-    permissions:
-      contents: write
-      pull-requests: read
-      statuses: write
-    uses: ./.github/workflows/SubDirDocumenter.yml
-    with:
-      subdir: AbstractXsdTypes.jl
-    secrets:
-      DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
-  call-documenter-XmlStructLoader:
-    permissions:
-      contents: write
-      pull-requests: read
-      statuses: write
-    uses: ./.github/workflows/SubDirDocumenter.yml
-    with:
-      subdir: XmlStructLoader.jl
-    secrets:
-      DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
-  call-documenter-XmlStructWriter:
-    permissions:
-      contents: write
-      pull-requests: read
-      statuses: write
-    uses: ./.github/workflows/SubDirDocumenter.yml
-    with:
-      subdir: XmlStructWriter.jl
-    secrets:
-      DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
-  call-documenter-XsdToStruct:
-    permissions:
-      contents: write
-      pull-requests: read
-      statuses: write
-    uses: ./.github/workflows/SubDirDocumenter.yml
-    with:
-      subdir: XsdToStruct.jl
-    secrets:
-      DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}

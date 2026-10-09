@@ -1,6 +1,6 @@
 # XsdToStruct.jl
 
-[![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://tom-lemmens.github.io/XmlStructTools.jl/XsdToStruct.jl/dev/)
+[![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://el-oso.github.io/XmlStructTools.jl/dev/guide/generating)
 
 This package generates a module with struct definitions which correspond to the data types specified in a given XML Schema file. Apart from the definitions it also generates constructors which can (partially) validate the data that is given with the restrictions specified in the schema file.
 

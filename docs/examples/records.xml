@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestRenamedElements:document xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="TestRenamedElements records.xsd" xmlns:TestRenamedElements="TestRenamedElements">
+    <single-record>
+        <Element-string>one</Element-string>
+        <Element-double>1.5</Element-double>
+    </single-record>
+    <repeated-record>
+        <Element-string>two</Element-string>
+        <Element-double>2.5</Element-double>
+    </repeated-record>
+    <repeated-record>
+        <Element-string>three</Element-string>
+        <Element-double>3.5</Element-double>
+    </repeated-record>
+    <plain>text</plain>
+</TestRenamedElements:document>

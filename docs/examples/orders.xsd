@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema" xmlns:Orders="Orders" targetNamespace="Orders">
+
+    <element name="orders" type="Orders:OrdersType"/>
+
+    <simpleType name="Sku">
+        <annotation>
+            <documentation>A product code: three capital letters, a dash and four digits.</documentation>
+        </annotation>
+        <restriction base="string">
+            <pattern value="[A-Z]{3}-[0-9]{4}"/>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Quantity">
+        <restriction base="integer">
+            <minInclusive value="1"/>
+        </restriction>
+    </simpleType>
+
+    <complexType name="Line">
+        <annotation>
+            <documentation>One product in an order.</documentation>
+        </annotation>
+        <sequence>
+            <element name="sku" type="Orders:Sku"/>
+            <element name="quantity" type="Orders:Quantity"/>
+            <element name="price" type="decimal"/>
+            <element name="note" type="string" minOccurs="0"/>
+        </sequence>
+    </complexType>
+
+    <complexType name="Order">
+        <sequence>
+            <element name="id" type="string"/>
+            <element name="placed" type="dateTime"/>
+            <choice>
+                <element name="email" type="string"/>
+                <element name="phone" type="string"/>
+            </choice>
+            <element name="line" type="Orders:Line" maxOccurs="unbounded"/>
+        </sequence>
+    </complexType>
+
+    <complexType name="OrdersType">
+        <sequence>
+            <element name="order" type="Orders:Order" maxOccurs="unbounded"/>
+        </sequence>
+    </complexType>
+
+</schema>

@@ -1,6 +1,6 @@
 # XmlStructWriter.jl
 
-[![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://tom-lemmens.github.io/XmlStructTools.jl/XmlStructWriter.jl/dev/)
+[![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://el-oso.github.io/XmlStructTools.jl/dev/guide/writing)
 
 ## Getting the required files
 

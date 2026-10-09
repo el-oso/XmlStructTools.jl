@@ -1,6 +1,6 @@
 # AbstractXsdTypes.jl
 
-[![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://tom-lemmens.github.io/XmlStructTools.jl/AbstractXsdTypes.jl/dev/)
+[![Dev Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://el-oso.github.io/XmlStructTools.jl/dev/guide/types)
 
 This package contains abstract types and generic functions used by the output of the `XsdToStruct` package.
 

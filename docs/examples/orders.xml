@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Orders:orders xmlns:Orders="Orders" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="Orders orders.xsd">
+    <order>
+        <id>A-1001</id>
+        <placed>2026-03-02T09:15:00</placed>
+        <email>ada@example.com</email>
+        <line>
+            <sku>KBD-0042</sku>
+            <quantity>2</quantity>
+            <price>49.90</price>
+        </line>
+        <line>
+            <sku>MSE-0007</sku>
+            <quantity>1</quantity>
+            <price>19.50</price>
+            <note>gift wrap</note>
+        </line>
+    </order>
+    <order>
+        <id>A-1002</id>
+        <placed>2026-03-02T11:40:00+01:00</placed>
+        <phone>+31 40 123 4567</phone>
+        <line>
+            <sku>MON-0100</sku>
+            <quantity>1</quantity>
+            <price>229.00</price>
+        </line>
+    </order>
+</Orders:orders>

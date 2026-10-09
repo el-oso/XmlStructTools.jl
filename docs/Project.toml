@@ -1,5 +1,18 @@
 [deps]
+AbstractXsdTypes = "894546dd-dc3f-42e8-9b69-a7785ccf72be"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+DocumenterVitepress = "4710194d-e776-4893-9690-8d956a29c365"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+TimeZones = "f269a46b-ccf7-5d73-abea-4c690281aa53"
+XmlStructLoader = "1bf1c528-19f0-4e43-b24f-ad91d84ffbf7"
+XmlStructPugixml = "69c5dbe4-038b-4614-a603-8f259d1fd840"
+XmlStructWriter = "1f6e99ea-5afe-4254-a342-0998356893f5"
+XsdToStruct = "3ae7ce5f-3138-4ab9-addd-ceedf56009da"
 
 [compat]
-Documenter = "1.4"
+Dates = "1"
+Documenter = "1.11"
+DocumenterVitepress = "0.3"
+Reexport = "1"
+TimeZones = "1"
