@@ -94,6 +94,8 @@ function has_xsd_type_node(children::Vector{AbstractTreeNode}, xsd_type_name::Ab
             found = strip_xsd_namespace(child.field.xsd_type) == xsd_type_name
         elseif typeof(child) == ComplexTreeNode || typeof(child) == ExtensionTreeNode
             found = has_xsd_type_field(child, xsd_type_name)
+        elseif child isa UnionTreeNode
+            found = has_xsd_type_node(child.union_nodes, xsd_type_name)
         end
 
         if found

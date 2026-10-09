@@ -159,6 +159,13 @@ end
     @test DateTimeNs(DateTime(2022, 5, 10)) == Date(2022, 5, 10)
     @test x != Date(2022, 5, 10)
 
+    # the nanoseconds may be any number in range; `new` converts them
+    @test DateTimeNs{DateTime}(base, 0x05) === DateTimeNs(base, 5)
+    @test DateTimeNs{DateTime}(base, 5.0) === DateTimeNs(base, 5)
+    @test_throws InexactError DateTimeNs{DateTime}(base, 5.5)
+    @test_throws "no single integer value" Dates.value(x)
+    @test DateTimeNs{ZonedDateTime}("2000-01-01T00:00:00.1+01:00") == DateTimeNs(ZonedDateTime(2000, 1, 1, 0, 0, 0, 100, tz"UTC+1"))
+
     @test string(DateTimeNs(DateTime(-1, 1, 2, 3, 4, 5, 6), 1)) == "-0001-01-02T03:04:05.006000001"
     @test string(DateTimeNs(DateTime(12, 1, 1))) == "0012-01-01T00:00:00"
     @test string(DateTimeNs(ZonedDateTime(DateTime(2022, 1, 1), FixedTimeZone("-05:30")))) == "2022-01-01T00:00:00-05:30"

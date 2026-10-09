@@ -96,7 +96,7 @@ The generator turns these facets into checks:
 
 | Facet | Applies to |
 |:--|:--|
-| `minInclusive`, `maxInclusive`, `minExclusive`, `maxExclusive` | numbers |
+| `minInclusive`, `maxInclusive`, `minExclusive`, `maxExclusive` | numbers, `dateTime` |
 | `totalDigits`, `fractionDigits` | numbers |
 
 The facets that restrict strings (`length`, `minLength`, `maxLength`, `pattern` and `enumeration`)

@@ -133,6 +133,30 @@ function construct_element(
 
     # Simple content: `T` wraps one public field whose type parses the element's text, so the
     # same element is read again under that type.
-    value = construct_element(get_base_field_type(T, 1), raw, default_value, module_ref, validate)
+    value = if T <: AbstractXsdTypes.AbstractXSDUnion
+        construct_union_member(T, raw, default_value, module_ref, validate)
+    else
+        construct_element(get_base_field_type(T, 1), raw, default_value, module_ref, validate)
+    end
     return T(value, getattributes_dict(raw), validate)
+end
+
+# XSD reads a union's text as the first of its member types that accepts it.
+function construct_union_member(
+        ::Type{T},
+        @nospecialize(raw::UnifiedXMLElement),
+        default_value,
+        module_ref::Module,
+        validate::Bool,
+    ) where {T}
+    failures = String[]
+    for member in AbstractXsdTypes.union_types(T)
+        try
+            return construct_element(member, raw, default_value, module_ref, validate)
+        catch e
+            e isa InterruptException && rethrow()
+            push!(failures, "  $member: " * first(split(sprint(showerror, e), '\n')))
+        end
+    end
+    throw(ArgumentError("\"$(content(raw))\" is not a value of any member of the union $T:\n" * join(failures, "\n")))
 end

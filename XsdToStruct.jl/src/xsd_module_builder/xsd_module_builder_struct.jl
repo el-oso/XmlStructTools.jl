@@ -480,14 +480,10 @@ end
 # Regex inspired by section 3.2.7.3 Timezones of
 # https://www.w3.org/TR/2004/REC-xmlschema-2-20041028/datatypes.html#dateTime
 const timezone_regex = r"((\+|-)\d\d:\d\d)|Z"
+# The generated code that builds an `xs:dateTime` value from its XSD text, as a default or a bound.
 function construct_time_default_value(default_value::AbstractString)::String
-    timezone_match = match(timezone_regex, default_value)
-    is_not_timezone_string = isnothing(timezone_match)
-    if is_not_timezone_string
-        defaults_value = "DateTimeNs(DateTime(\"$default_value\"))"
-    else
-        defaults_value = "DateTimeNs(ZonedDateTime(\"$default_value\", \"yyyy-mm-ddTHH:MM:SSzzzzzz\"))"
-    end
+    wrapped_type = isnothing(match(timezone_regex, default_value)) ? "DateTime" : "ZonedDateTime"
+    return "DateTimeNs{$wrapped_type}(\"$default_value\")"
 end
 
 function write_defaults_function(

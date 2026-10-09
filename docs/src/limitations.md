@@ -7,6 +7,9 @@ they were written for use. The list below is what is known not to work.
 
 - `xs:include`, `xs:import` and `xs:redefine` are not read: a schema has to be in one file.
 - A schema without a `targetNamespace` is not supported.
+- `xs:list` is not read; an element that repeats, with `maxOccurs`, is. A union is read when its
+  member types are written as nested `xs:simpleType` elements, not when they are named in
+  `memberTypes`.
 - Attribute declarations do not become fields. The attributes of an element are kept as strings in
   its `__xml_attributes` dictionary.
 - Element and type names that are not valid Julia identifiers must be renamed with `mapping`; see
@@ -25,10 +28,12 @@ holds loses them, and trailing zeros are not kept when it is written back.
 
 ## Restrictions
 
-Only the numeric facets are checked: `minInclusive`, `maxInclusive`, `minExclusive`,
-`maxExclusive`, `totalDigits` and `fractionDigits`. The string facets `length`, `minLength`,
-`maxLength`, `pattern` and `enumeration` are not checked, so a document that violates them loads,
-and an object that violates them is written.
+Only these facets are checked: `minInclusive`, `maxInclusive`, `minExclusive` and `maxExclusive`
+on numbers and `dateTime` values, and `totalDigits` and `fractionDigits` on numbers. The string
+facets `length`, `minLength`, `maxLength`, `pattern` and `enumeration` are not checked, so a
+document that violates them loads, and an object that violates them is written. A `dateTime`
+bound and value compare only when both have a zone offset or neither does; otherwise the check
+throws an `ArgumentError`, as XML Schema leaves their order undetermined.
 
 ## Times
 

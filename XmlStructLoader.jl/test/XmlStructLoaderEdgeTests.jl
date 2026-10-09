@@ -130,3 +130,59 @@ end
 
     @test_throws UndefKeywordError XmlStructLoader.keyword_builder(BuilderProbe, [:optional])(Any["y"])
 end
+
+# A schema with one element `at` of the simple type `body` defines. The module takes its name from
+# the namespace prefix, so each schema needs its own `name` to get a module of its own.
+function load_at(name::AbstractString, body::AbstractString, text::AbstractString)
+    dir = mktempdir()
+    xsd_path = joinpath(dir, name * ".xsd")
+    write(
+        xsd_path,
+        """
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:$name="$name" targetNamespace="$name">
+            <xs:element name="document" type="$name:documentType"/>
+            $body
+            <xs:complexType name="documentType">
+                <xs:sequence><xs:element name="at" type="$name:At"/></xs:sequence>
+            </xs:complexType>
+        </xs:schema>
+        """,
+    )
+    module_dir = dirname(xsd_to_struct_module(xsd_path, dir))
+    xml_path = joinpath(dir, "document.xml")
+    write(xml_path, """<?xml version="1.0"?><$name:document xmlns:$name="$name"><at>$text</at></$name:document>""")
+    return Base.invokelatest(getproperty, load(xml_path, module_dir).at, :value)
+end
+
+@testset "Edge tests load - dateTime bounds" begin
+    zoned_bounds = """
+        <xs:simpleType name="At"><xs:restriction base="xs:dateTime">
+            <xs:minInclusive value="2000-01-01T00:00:00Z"/><xs:maxExclusive value="2100-01-01T00:00:00.5Z"/>
+        </xs:restriction></xs:simpleType>"""
+    local_bounds = """
+        <xs:simpleType name="At"><xs:restriction base="xs:dateTime">
+            <xs:minExclusive value="2000-01-01T00:00:00"/><xs:maxInclusive value="2100-01-01T00:00:00.1525575"/>
+        </xs:restriction></xs:simpleType>"""
+
+    @test string(load_at("ZonedInside", zoned_bounds, "2022-05-10T10:22:49.1525575Z")) == "2022-05-10T10:22:49.1525575Z"
+    @test_throws XmlStructLoader.AbstractXsdTypes.XSDValueRestrictionViolationError load_at("ZonedBelow", zoned_bounds, "1999-12-31T23:59:59.999999999Z")
+    @test_throws XmlStructLoader.AbstractXsdTypes.XSDValueRestrictionViolationError load_at("ZonedAtMax", zoned_bounds, "2100-01-01T00:00:00.5Z")
+    @test string(load_at("LocalAtMax", local_bounds, "2100-01-01T00:00:00.1525575")) == "2100-01-01T00:00:00.1525575"
+    @test_throws XmlStructLoader.AbstractXsdTypes.XSDValueRestrictionViolationError load_at("LocalAbove", local_bounds, "2100-01-01T00:00:00.1525576")
+    @test_throws "one has a zone offset and the other does not" load_at("Mixed", zoned_bounds, "2022-05-10T10:22:49")
+end
+
+@testset "Edge tests load - unions take the first member that accepts the text" begin
+    union_of(first_base, second_base) = """
+        <xs:simpleType name="At"><xs:union>
+            <xs:simpleType><xs:restriction base="$first_base"/></xs:simpleType>
+            <xs:simpleType><xs:restriction base="$second_base"/></xs:simpleType>
+        </xs:union></xs:simpleType>"""
+    stamp = "2022-05-10T10:22:49.1525575+01:00"
+
+    @test string(load_at("DateFirstDate", union_of("xs:dateTime", "xs:double"), stamp)) == stamp
+    @test load_at("DateFirstDouble", union_of("xs:dateTime", "xs:double"), "1.5") == 1.5
+    @test load_at("DoubleFirstDouble", union_of("xs:double", "xs:dateTime"), "1.5") == 1.5
+    @test string(load_at("DoubleFirstDate", union_of("xs:double", "xs:dateTime"), stamp)) == stamp
+    @test_throws "is not a value of any member" load_at("Neither", union_of("xs:double", "xs:dateTime"), "neither")
+end

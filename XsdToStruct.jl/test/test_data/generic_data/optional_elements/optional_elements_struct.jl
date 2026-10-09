@@ -127,7 +127,7 @@ Base.@kwdef struct TestComplexType6 <: AbstractXsdTypes.AbstractXSDComplex
     __validated::Bool = true
 end
 
-AbstractXsdTypes.defaults(::Type{TestComplexType6}) = (Element_simple1 = DateTimeNs(ZonedDateTime("0001-01-01T00:00:00+00:00", "yyyy-mm-ddTHH:MM:SSzzzzzz")), Element_simple3 = DateTimeNs(DateTime("0001-02-03T04:05:06.666")), Element_simple4 = DateTimeNs(ZonedDateTime("0999-08-07T06:55:44-03:22", "yyyy-mm-ddTHH:MM:SSzzzzzz")), Element_simple5 = DateTimeNs(ZonedDateTime("0004-05-06T07:08:09Z", "yyyy-mm-ddTHH:MM:SSzzzzzz")), )
+AbstractXsdTypes.defaults(::Type{TestComplexType6}) = (Element_simple1 = DateTimeNs{ZonedDateTime}("0001-01-01T00:00:00+00:00"), Element_simple3 = DateTimeNs{DateTime}("0001-02-03T04:05:06.666"), Element_simple4 = DateTimeNs{ZonedDateTime}("0999-08-07T06:55:44-03:22"), Element_simple5 = DateTimeNs{ZonedDateTime}("0004-05-06T07:08:09Z"), )
 
 export TestComplexType6
 

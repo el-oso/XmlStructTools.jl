@@ -53,7 +53,11 @@ function write_restriction_functions(
 end
 
 function get_value_string(julia_type_string::AbstractString, xsd_value_string::AbstractString)::String
-	if julia_type_string in values(built_in_data_type_dict)
+	if julia_type_string == built_in_data_type_dict["dateTime"]
+		# A zoned bound needs TimeZones, which the generator does not load, so the generated code
+		# builds the bound from its text.
+		value_string = construct_time_default_value(xsd_value_string)
+	elseif julia_type_string in values(built_in_data_type_dict)
 		julia_type = julia_type_string |> Meta.parse |> eval
 		value_string = string(parse(julia_type, xsd_value_string))
 	else

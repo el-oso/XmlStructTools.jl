@@ -38,7 +38,7 @@ struct DateTimeNs{T<:Dates.AbstractDateTime} <: Dates.AbstractDateTime
     datetime::T
     nanoseconds::Int32
 
-    function DateTimeNs{T}(datetime, nanoseconds::Integer = 0) where {T<:Dates.AbstractDateTime}
+    function DateTimeNs{T}(datetime, nanoseconds = 0) where {T<:Dates.AbstractDateTime}
         0 <= nanoseconds < 1_000_000 ||
             throw(ArgumentError("nanoseconds below a millisecond must be in 0:999_999, got $nanoseconds"))
         return new{T}(datetime, nanoseconds)
@@ -79,15 +79,17 @@ DateTimeNs{T}(adjust::Function, args...; kwargs...) where {T<:Dates.AbstractDate
 DateTimeNs{T}(adjust::Function, y::Integer; kwargs...) where {T<:Dates.AbstractDateTime} =
     DateTimeNs{T}(T(adjust, y; kwargs...))
 
-# Text with up to nine digits after the seconds, in the forms the wrapped type parses; the digits
-# past the third are the nanoseconds.
+# Text with up to nine digits after the seconds, in the forms the wrapped type parses. The wrapped
+# type is given exactly three digits, which its default format expects; the rest are the
+# nanoseconds.
 function DateTimeNs{T}(text::AbstractString) where {T<:Dates.AbstractDateTime}
-    m = match(r"^(.*T\d\d:\d\d:\d\d\.\d{3})(\d+)(.*)$", text)
+    m = match(r"^(.*T\d\d:\d\d:\d\d)\.(\d+)(.*)$", text)
     isnothing(m) && return DateTimeNs{T}(T(text))
     fraction = m.captures[2]
-    length(fraction) <= 6 ||
+    length(fraction) <= 9 ||
         throw(ArgumentError("\"$text\" has more than nine digits after the seconds, which DateTimeNs cannot hold"))
-    return DateTimeNs{T}(T(m.captures[1] * m.captures[3]), parse(Int, rpad(fraction, 6, '0')))
+    fraction = rpad(fraction, 9, '0')
+    return DateTimeNs{T}(T(m.captures[1] * "." * fraction[1:3] * m.captures[3]), parse(Int, fraction[4:9]))
 end
 # A `DateFormat` resolves to the millisecond, so these give no nanoseconds.
 DateTimeNs{T}(text::AbstractString, format::Union{AbstractString,Dates.DateFormat}; kwargs...) where {T<:Dates.AbstractDateTime} =
@@ -111,6 +113,15 @@ Base.typeinfo_implicit(::Type{<:DateTimeNs}) = true
 # the variant wraps.
 Base.convert(::Type{U}, x::T) where {T<:Dates.AbstractDateTime,DateTimeNs{T}<:U<:Union{Nothing,DateTimeNs}} =
     DateTimeNs(x)
+
+# `Dates.value` of a `DateTime` counts milliseconds from year 1; in nanoseconds that count overflows
+# an `Int64` for any date after about the year 293.
+Dates.value(x::DateTimeNs) = throw(
+    ArgumentError(
+        "a DateTimeNs has no single integer value: use Dates.value(DateTime(x)) for the milliseconds, " *
+        "and nanosecond(x) and microsecond(x) for the rest",
+    ),
+)
 
 Dates.days(x::DateTimeNs) = Dates.days(x.datetime)
 Dates.hour(x::DateTimeNs) = Dates.hour(x.datetime)
