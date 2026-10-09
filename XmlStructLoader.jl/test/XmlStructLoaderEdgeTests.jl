@@ -96,3 +96,21 @@ end
     @test XmlStructLoader.fraction_digit_count("-0001-01-01T00:00:37.123456Z") == 6
     @test XmlStructLoader.fraction_digit_count("2024-01-01") == 0
 end
+
+Base.@kwdef struct BuilderProbe
+    required::Int
+    optional::Union{Nothing, String} = nothing
+end
+
+@testset "Edge tests load - keyword builders" begin
+    both = XmlStructLoader.keyword_builder(BuilderProbe, [:required, :optional])
+    @test XmlStructLoader.keyword_builder(BuilderProbe, [:required, :optional]) === both
+    @test both(Any[1, "x"]) == BuilderProbe(1, "x")
+
+    # A different set of names present gets its own builder, and the keyword defaults still apply.
+    required_only = XmlStructLoader.keyword_builder(BuilderProbe, [:required])
+    @test required_only !== both
+    @test required_only(Any[2]) == BuilderProbe(2, nothing)
+
+    @test_throws UndefKeywordError XmlStructLoader.keyword_builder(BuilderProbe, [:optional])(Any["y"])
+end

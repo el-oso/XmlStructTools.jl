@@ -54,13 +54,48 @@ end
 
 Call the keyword constructor of `T` with the fields from [`_child_fields`](@ref).
 
-The keyword arguments are built as one `NamedTuple` rather than splatted from a dictionary,
-whose run-time conversion to a `NamedTuple` costs more than building the `NamedTuple` directly.
+The call goes through a builder compiled for `T` and the names present, from
+[`keyword_builder`](@ref): a `NamedTuple` built from names known only at run time costs several
+times more than the constructor itself.
 """
 function construct_from_fields(@nospecialize(T::Type), names::Vector{Symbol}, values::Vector{Any}, xml_attributes, validate::Bool)
     push!(names, :__xml_attributes, :__validated)
     push!(values, xml_attributes, validate)
-    return Core.kwcall(NamedTuple{Tuple(names)}(Tuple(values)), T)
+    return keyword_builder(T, names)(values)
+end
+
+# Each value is asserted to be of its field's type, so the `NamedTuple` and the keyword call are
+# concrete. A keyword that is not a field, such as a choice member, stays `Any`.
+@generated function build_with_keywords(::Type{T}, ::Val{N}, values::Vector{Any}) where {T, N}
+    arguments = [:(values[$i]::$(N[i] in fieldnames(T) ? fieldtype(T, N[i]) : Any)) for i in eachindex(N)]
+    return :(Core.kwcall(NamedTuple{$N}(($(arguments...),)), T))
+end
+
+const KEYWORD_BUILDERS = IdDict{Type, Vector{Pair{Vector{Symbol}, Function}}}()
+const KEYWORD_BUILDERS_LOCK = ReentrantLock()
+
+"""
+	keyword_builder(T, names)
+
+The function that calls the keyword constructor of `T` with the keywords `names`, given their
+values as a `Vector{Any}` in the same order.
+
+One builder is compiled per type and set of names and kept for the session. A precompile workload
+that loads a document saves the code compiled for its builders with the package that ran it; a
+set of names that the precompile sample does not contain is compiled when a document first
+contains it.
+"""
+function keyword_builder(@nospecialize(T::Type), names::Vector{Symbol})::Function
+    return lock(KEYWORD_BUILDERS_LOCK) do
+        builders = get!(() -> Pair{Vector{Symbol}, Function}[], KEYWORD_BUILDERS, T)
+        for (known_names, builder) in builders
+            known_names == names && return builder
+        end
+        keyword_names = Val(Tuple(names))
+        builder = values -> build_with_keywords(T, keyword_names, values)
+        push!(builders, copy(names) => builder)
+        return builder
+    end
 end
 
 """

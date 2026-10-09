@@ -163,6 +163,10 @@ workload caches exactly the calls it makes: this one covers a file path and an `
 without validation, and nothing else. A caller who loads through their own wrapper can cache that
 too, with a `PrecompileTools.@compile_workload` of their own.
 
+Each complex type is built by code compiled for the set of child elements present, so the sample
+should also contain the optional elements that real documents use: a combination the sample lacks
+is compiled when a document first contains it, at about 20 ms each.
+
 Calling this is the opt-in; a package that does not want the extra precompilation simply does not
 call it. The single-argument form reads the sample from `module_ref.__meta.precompile_sample`, for
 generated modules that carry one.
