@@ -296,8 +296,8 @@ You must implement the AbstractXsdTypes.union_types function.
 xml attributes will be passed along to the value type.
 
 ```julia
-Base.@kwdef @concrete struct UnionType <: AbstractXsdTypes.AbstractXSDUnion
-    value <: Union{FloatType,AnotherFloatType,StringType}
+Base.@kwdef struct UnionType <: AbstractXsdTypes.AbstractXSDUnion
+    value::Union{FloatType,AnotherFloatType,StringType}
     __validated::Bool = true
 end
 
@@ -309,7 +309,7 @@ abstract type AbstractXSDUnion end
 # this function must be implemented by the client (XsdToStruct.jl): union_types(::Type{<:AbstractXSDUnion})
 union_types(union::AbstractXSDUnion) = union_types(typeof(union))
 
-# AbstractXSDUnion will have a (::Type{T})(value::Union{...}, __validated::Bool) as inner constructor due to @concrete
+# A concrete AbstractXSDUnion has the default (value::Union{...}, __validated::Bool) constructor.
 function (::Type{T})(
     input_value,
     __xml_attributes::OptionalAttributes = nothing,
