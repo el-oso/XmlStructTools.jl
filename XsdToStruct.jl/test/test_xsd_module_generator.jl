@@ -88,3 +88,13 @@ end
 
     rm(tmp_output_dir, recursive = true)
 end
+
+@testset "xsd reader - name mapping - schema name" begin
+    xsd_path = joinpath(generic_data_dir, "basic_types.xsd")
+    schema_name = XsdToStruct.name(XsdToStruct.read_xsd(xsd_path))
+    @test_throws "the module name cannot be renamed" xsd_to_struct_module(
+        xsd_path,
+        output_dir;
+        mapping = Dict(schema_name => "Renamed"),
+    )
+end

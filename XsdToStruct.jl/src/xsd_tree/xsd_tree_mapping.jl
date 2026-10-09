@@ -63,12 +63,20 @@ end
 """
     apply_mapping!(xsd_tree::SchemaTreeNode, mapping::NameMapping)::Nothing
 
-Rename the elements and types of `xsd_tree` in place. The schema name, which becomes the module
-name, is renamed as a type.
+Rename the elements and types of `xsd_tree` in place.
+
+The schema name, which becomes the module name, cannot be renamed: types that restrict a namespaced
+base refer to it as a bare module path, which the renames do not reach.
 """
 function apply_mapping!(xsd_tree::SchemaTreeNode, mapping::NameMapping)::Nothing
     isempty(mapping) && return nothing
-    map_common_data!(xsd_tree.common_data, mapping)
+    schema_name = name(xsd_tree)
+    haskey(mapping.types, schema_name) && throw(
+        ArgumentError(
+            "the mapping renames \"$schema_name\", which names the schema and so the generated module; " *
+                "the module name cannot be renamed",
+        ),
+    )
     apply_mapping!(xsd_tree.root_field, mapping)
     for node in xsd_tree.child_nodes
         apply_mapping!(node, mapping)
@@ -84,7 +92,10 @@ function apply_mapping!(xsd_node::SimpleTreeNode, mapping::NameMapping)::Nothing
 end
 
 function apply_mapping!(xsd_node::ComplexTreeNode, mapping::NameMapping)::Nothing
+    xsd_name = name(xsd_node)
     map_common_data!(xsd_node.common_data, mapping)
+    rename_choice_fields!(xsd_node.fields, xsd_name, name(xsd_node))
+    map!(field_name -> choice_field_name(field_name, xsd_name, name(xsd_node)), xsd_node.field_ordering, xsd_node.field_ordering)
     foreach(field -> apply_mapping!(field, mapping), xsd_node.fields)
     foreach(field -> apply_mapping!(field, mapping), xsd_node.child_fields)
     foreach(node -> apply_mapping!(node, mapping), xsd_node.child_nodes)
@@ -92,14 +103,34 @@ function apply_mapping!(xsd_node::ComplexTreeNode, mapping::NameMapping)::Nothin
     return nothing
 end
 
+# The base fields and base children of an extension are the base type's own objects, which are
+# renamed with the base type; only the extension's copy of the base field order is its own.
 function apply_mapping!(xsd_node::ExtensionTreeNode, mapping::NameMapping)::Nothing
     map_common_data!(xsd_node.common_data, mapping)
-    xsd_node.base_name = map_xsd_name(xsd_node.base_name, mapping.types)
+    xsd_base_name = xsd_node.base_name
+    xsd_node.base_name = map_xsd_name(xsd_base_name, mapping.types)
     apply_mapping!(xsd_node.node_content, mapping)
-    foreach(field -> apply_mapping!(field, mapping), xsd_node.base_fields)
-    foreach(field -> apply_mapping!(field, mapping), xsd_node.base_child_fields)
-    foreach(node -> apply_mapping!(node, mapping), xsd_node.base_children)
-    map!(name -> map_xsd_name(name, mapping.fields), xsd_node.base_field_ordering, xsd_node.base_field_ordering)
+    map!(
+        field_name -> map_xsd_name(choice_field_name(field_name, xsd_base_name, xsd_node.base_name), mapping.fields),
+        xsd_node.base_field_ordering,
+        xsd_node.base_field_ordering,
+    )
+    return nothing
+end
+
+# A choice field is named `__<Type>_choice_<n>` after the type that holds it, and the generated
+# `propertynames` hides the type's fields by that prefix, so the field follows the type's rename.
+function choice_field_name(field_name::AbstractString, xsd_type_name::AbstractString, julia_type_name::AbstractString)
+    xsd_prefix = "__$(xsd_type_name)_choice_"
+    startswith(field_name, xsd_prefix) || return field_name
+    return "__$(julia_type_name)_choice_" * field_name[(ncodeunits(xsd_prefix) + 1):end]
+end
+
+function rename_choice_fields!(fields, xsd_type_name::AbstractString, julia_type_name::AbstractString)::Nothing
+    for field in fields
+        field isa ChoiceFieldData || continue
+        field.name = choice_field_name(field.name, xsd_type_name, julia_type_name)
+    end
     return nothing
 end
 

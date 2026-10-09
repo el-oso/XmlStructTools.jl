@@ -109,6 +109,9 @@ end
 
 The element names `module_ref` renamed when it was generated, mapped to the field names that hold
 them: its `__meta.XSDMapping` as `Symbol`s. Empty for a module generated without that mapping.
+
+`XSDMapping` holds the element renames themselves, or, as some generators store it, the whole
+mapping with the element renames under `"Fields"`.
 """
 function element_field_mapping(module_ref::Module)::Dict{Symbol, Symbol}
     lock(element_field_cache_lock)
@@ -117,7 +120,7 @@ function element_field_mapping(module_ref::Module)::Dict{Symbol, Symbol}
             # Read in the latest world: the module may have been included after this load started.
             meta = Base.invokelatest(getglobal, module_ref, :__meta)
             Base.invokelatest(isdefined, meta, :XSDMapping) || return Dict{Symbol, Symbol}()
-            mapping = Base.invokelatest(getglobal, meta, :XSDMapping)
+            mapping = element_renames(Base.invokelatest(getglobal, meta, :XSDMapping))
             return Dict{Symbol, Symbol}(Symbol(element) => Symbol(field) for (element, field) in mapping)
         end
     finally
@@ -128,5 +131,9 @@ end
 const element_field_cache = IdDict{Module, Dict{Symbol, Symbol}}()
 const element_field_cache_lock = ReentrantLock()
 
+# A flat mapping may rename an element called "Fields", so only a dictionary there marks the split form.
+element_renames(mapping::AbstractDict) =
+    get(mapping, "Fields", nothing) isa AbstractDict ? mapping["Fields"] : mapping
+
 mapped_field_symbol(element_symbol::Symbol, mapping::Dict{Symbol, Symbol})::Symbol =
-    isempty(mapping) ? element_symbol : get(mapping, element_symbol, element_symbol)
+    get(mapping, element_symbol, element_symbol)

@@ -8,7 +8,7 @@ function process_xsd_tree!(xsd_tree::SchemaTreeNode, mapping::NameMapping = Name
         substitute_group!(node, xsd_tree.group_nodes)
     end
 
-    # After extensions and groups are resolved, which look nodes up by their xsd names.
+    # Applied after extension and group resolution, which look nodes up by their xsd names.
     apply_mapping!(xsd_tree, mapping)
 
     remove_simple_boolean!(xsd_tree)

@@ -38,8 +38,7 @@ The optional `mapping` argument renames elements and types of the xsd file in th
 not valid or not wanted in Julia. A flat `"xsd_name" => "julia_name"` dictionary renames elements and types alike;
 a dictionary with the keys `"Fields"` and `"Types"` renames them separately. The element renames are stored in the
 generated module as `__meta.XSDMapping`, through which XmlStructLoader and XmlStructWriter translate between element
-names and field names. Rename a type together with any element that has an anonymous type of the same name, or the
-two no longer match.
+names and field names. The schema name, which names the generated module, cannot be renamed.
 
 # Examples
 ```julia-repl

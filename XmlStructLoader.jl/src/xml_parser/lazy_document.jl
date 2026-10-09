@@ -89,7 +89,8 @@ function Base.getindex(elements::LazyVector{T}, i::Int) where {T}
     # racing here both do the work and agree on the result.
     isassigned(elements.cache, i) && return elements.cache[i]::T
     _check_open(elements.handle)
-    element = construct_element(
+    # Built in the latest world, as every part of a deferred document is: see `_lazy_field`.
+    element = Base.@invokelatest construct_element(
         T,
         elements.nodes[i],
         elements.default_value,
@@ -183,8 +184,9 @@ function lazyload(xml_path::AbstractString, module_ref::Module; validate::Bool =
     )
 end
 
+# The module may be included here, which leaves this call older than the bindings it reads.
 lazyload(xml_path::AbstractString, module_path::AbstractString; validate::Bool = true) =
-    lazyload(xml_path, import_module_from_xml(xml_path, module_path); validate = validate)
+    Base.@invokelatest lazyload(xml_path, import_module_from_xml(xml_path, module_path); validate = validate)
 
 function lazyload(f::Function, xml_path::AbstractString, module_or_path; validate::Bool = true)
     doc = lazyload(xml_path, module_or_path; validate = validate)
@@ -242,7 +244,9 @@ function _lazy_field(doc::LazyDocument{T}, name::Symbol) where {T}
     isnothing(slot) && throw(ArgumentError("$T has no field $name"))
     cache = getfield(doc, :_cache)
     isassigned(cache, slot) && return cache[slot]
-    value = _build_lazy_field(doc, name)
+    # Built in the latest world: the generated module can be newer than the caller, as it is when
+    # `lazyload` included it within the caller's own function.
+    value = Base.@invokelatest _build_lazy_field(doc, name)
     cache[slot] = value
     return value
 end
@@ -309,15 +313,16 @@ function materialize(doc::LazyDocument)
     full = getfield(doc, :_full)
     isnothing(full[]) || return full[]
     _check_open(getfield(doc, :_handle))
+    # Built in the latest world, as every part of a deferred document is: see `_lazy_field`.
     object = if getfield(doc, :_is_root)
-        construct_xml_root_object(
+        Base.@invokelatest construct_xml_root_object(
             getfield(doc, :_root),
             getfield(doc, :_module),
             copy(getfield(doc, :_attrs));
             validate = getfield(doc, :_validate),
         )
     else
-        construct_element(
+        Base.@invokelatest construct_element(
             _deferred_type(doc),
             getfield(doc, :_root),
             getfield(doc, :_default),

@@ -30,8 +30,14 @@ edge_test_files = get_test_files(edge_data_dir)
 @testset "Edge tests load - renamed elements" begin
     xml_path = joinpath(edge_data_dir, "renamed_elements.xml")
     module_dir = joinpath(edge_data_dir, "renamed_elements")
+
+    # Nothing has included this module yet, so the path form reads bindings newer than its caller.
+    lazy = lazyload(xml_path, module_dir)
+    @test lazy.single_record.element_string == "one"
+    @test length(lazy.repeated_record) == 2
+    @test lazy.repeated_record[2].element_double == 3.5
+
     module_ref = XmlStructLoader.import_module_from_xml(xml_path, module_dir)
-    # The module was included inside this testset, so its bindings are newer than the running world.
     meta = Base.invokelatest(getglobal, module_ref, :__meta)
     @test Base.invokelatest(getglobal, meta, :XSDMapping) == RENAMED_ELEMENTS_MAPPING
     @test Base.invokelatest(getglobal, meta, :root_name) == "document"
@@ -42,11 +48,6 @@ edge_test_files = get_test_files(edge_data_dir)
     @test [record.element_string for record in doc.repeated_record] == ["two", "three"]
     @test doc.plain == "text"
     @test !haskey(doc.__xml_attributes, "__root_name")
-
-    lazy = lazyload(xml_path, module_ref)
-    @test lazy.single_record.element_string == "one"
-    @test length(lazy.repeated_record) == 2
-    @test lazy.repeated_record[2].element_double == 3.5
     @test repr(XmlStructLoader.materialize(lazy)) == repr(doc)
     close(lazy)
 end
@@ -72,4 +73,18 @@ end
             end
         end
     end
+end
+
+@testset "Edge tests load - element renames stored with type renames" begin
+    split_module = Module()
+    Core.eval(split_module, :(module __meta
+        XSDMapping = Dict("Fields" => Dict("a-b" => "a_b"), "Types" => Dict("T" => "U"))
+    end))
+    @test XmlStructLoader.element_field_mapping(split_module) == Dict(Symbol("a-b") => :a_b)
+
+    flat_module = Module()
+    Core.eval(flat_module, :(module __meta
+        XSDMapping = Dict("Fields" => "fields", "a-b" => "a_b")
+    end))
+    @test XmlStructLoader.element_field_mapping(flat_module) == Dict(:Fields => :fields, Symbol("a-b") => :a_b)
 end

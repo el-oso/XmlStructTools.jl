@@ -65,3 +65,54 @@ end
     write_xml(xml_loaded, "document", named_output_path)
     @test compare_xml_files(xml_path, named_output_path)
 end
+
+# Renames change only Julia names, so a document written through a module generated with every
+# element and type renamed must match the one written through the plain module. Each module is
+# included into a fresh module so the plain and renamed ones, which share a name, stay apart.
+xsd_names(xsd_text::AbstractString, tags::AbstractString) =
+    unique(m.captures[1] for m in eachmatch(Regex("<(?:\\w+:)?(?:$tags)\\s[^>]*?name=\"([^\"]+)\""), xsd_text))
+
+@testset "writing - every element and type renamed - $(basename(module_dir))" for (module_dir, xml_files) in
+    generic_test_files
+    isempty(xml_files) && continue
+    xsd_path = module_dir * ".xsd"
+    xsd_text = read(xsd_path, String)
+    schema_name = XsdToStruct.name(XsdToStruct.read_xsd(xsd_path))
+    mapping = Dict(
+        "Fields" => Dict(name => name * "_field" for name in xsd_names(xsd_text, "element")),
+        "Types" => Dict(
+            name => name * "_type" for name in xsd_names(xsd_text, "complexType|simpleType") if name != schema_name
+        ),
+    )
+    plain = Base.include(Module(), xsd_to_struct_module(xsd_path, joinpath(output_dir, "plain")))
+    renamed = Base.include(Module(), xsd_to_struct_module(xsd_path, joinpath(output_dir, "renamed"); mapping))
+    renamed_root = Base.invokelatest(getglobal, Base.invokelatest(getglobal, renamed, :__meta), :root_type)
+    @test all(field -> endswith(String(field), "_field") || startswith(String(field), "__"), fieldnames(renamed_root))
+
+    @testset "$(basename(xml_path))" for (xml_path, _) in xml_files
+        plain_path = joinpath(output_dir, "plain", basename(xml_path))
+        renamed_path = joinpath(output_dir, "renamed", basename(xml_path))
+        write_xml(Base.invokelatest(load, xml_path, plain), plain_path)
+        write_xml(Base.invokelatest(load, xml_path, renamed), renamed_path)
+        @test read(renamed_path, String) == read(plain_path, String)
+    end
+end
+
+@testset "writing - a module storing the whole split mapping" begin
+    split_module = Module()
+    Core.eval(split_module, :(module __meta
+        XSDMapping = Dict("Fields" => Dict("a-b" => "a_b"), "Types" => Dict("T" => "U"))
+    end))
+    @test XmlStructWriter.field_element_names(split_module) == Dict(:a_b => "a-b")
+
+    flat_module = Module()
+    Core.eval(flat_module, :(module __meta
+        XSDMapping = Dict("Fields" => "fields", "a-b" => "a_b")
+    end))
+    @test XmlStructWriter.field_element_names(flat_module) == Dict(:fields => "Fields", :a_b => "a-b")
+end
+
+@testset "writing - a type no generated module carries" begin
+    @test isnothing(XmlStructWriter.generated_module(Int))
+    @test isempty(XmlStructWriter.field_element_names(nothing))
+end

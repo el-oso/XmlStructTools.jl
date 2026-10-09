@@ -96,8 +96,8 @@ xsd_to_struct_module(
 
 `generate_modules` takes the same keyword and applies it to every module. The element renames are kept in the generated
 module as `__meta.XSDMapping`, which XmlStructLoader uses to read each element into its renamed field and XmlStructWriter
-uses to write the field back under its element name. An element with an anonymous type gives that type the element's
-name, so rename the type together with the element.
+uses to write the field back under its element name. The schema name, which names the generated module, cannot be
+renamed.
 
 ## Using the generated structure definitions
 
