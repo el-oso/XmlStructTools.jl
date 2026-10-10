@@ -54,7 +54,8 @@ end
     @test BoundedWait(Hour(720)).value == Dates.CompoundPeriod(Day(30))
     @test_throws "exceeds the maximum value P30D" BoundedWait(Day(30) + Nanosecond(1))
     @test_throws "is less than the minimum value PT0S" BoundedWait(Second(0))
-    @test_throws "is undetermined" BoundedWait(Month(1))
+    @test_throws AbstractXsdTypes.XSDValueRestrictionViolationError BoundedWait(Month(1))
+    @test_throws "their order is undetermined" BoundedWait(Month(1))
     @test !BoundedWait(Day(31), false).__validated
     @test string(BoundedWait(Hour(3))) == "3 hours"
 end

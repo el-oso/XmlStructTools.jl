@@ -141,7 +141,11 @@ function construct_element(
     return T(value, getattributes_dict(raw), validate)
 end
 
-# XSD reads a union's text as the first of its member types that accepts it.
+# XSD reads a union's text as the first of its member types that accepts it. A member rejects the
+# text by failing to parse it or by a restriction it breaks; any other error is a fault and is
+# rethrown.
+const UnionMemberRejection =
+    Union{ArgumentError,InexactError,OverflowError,Parsers.Error,AbstractXsdTypes.XSDRestrictionViolationError}
 function construct_union_member(
         ::Type{T},
         @nospecialize(raw::UnifiedXMLElement),
@@ -149,14 +153,22 @@ function construct_union_member(
         module_ref::Module,
         validate::Bool,
     ) where {T}
-    failures = String[]
-    for member in AbstractXsdTypes.union_types(T)
+    members = AbstractXsdTypes.union_types(T)
+    failures = Vector{Exception}(undef, length(members))
+    for (i, member) in enumerate(members)
         try
             return construct_element(member, raw, default_value, module_ref, validate)
         catch e
-            e isa InterruptException && rethrow()
-            push!(failures, "  $member: " * first(split(sprint(showerror, e), '\n')))
+            e isa UnionMemberRejection || rethrow()
+            failures[i] = e
         end
     end
-    throw(ArgumentError("\"$(content(raw))\" is not a value of any member of the union $T:\n" * join(failures, "\n")))
+    reasons = ("  $member: " * first(split(sprint(showerror, e), '\n')) for (member, e) in zip(members, failures))
+    throw(
+        AbstractXsdTypes.XSDValueRestrictionViolationError(
+            T,
+            content(raw),
+            "\"$(content(raw))\" is not a value of any member of the union $T:\n" * join(reasons, "\n"),
+        ),
+    )
 end

@@ -118,3 +118,26 @@ const float_types_values = [
         end
     end
 end
+
+# An xs:float type stores a Float32; the constructor accepts any number and checks it as stored.
+struct EnumeratedFloat32 <: AbstractXsdTypes.AbstractXSDFloat
+    value::Float32
+    __xml_attributes::Union{Nothing,Dict{String,String}}
+    __validated::Bool
+    function EnumeratedFloat32(
+        value::Number,
+        __xml_attributes::Union{Nothing,Dict{String,String}} = nothing,
+        __validated::Bool = true,
+    )
+        __validated && AbstractXsdTypes.check_restrictions(EnumeratedFloat32, value)
+        return new(value, __xml_attributes, __validated)
+    end
+end
+AbstractXsdTypes.get_enumeration(::Type{EnumeratedFloat32}) = (Float32(1.1), NaN32)
+AbstractXsdTypes.get_restriction_checks(::Type{EnumeratedFloat32}) = (AbstractXsdTypes.enumeration_check,)
+
+@testset "enumeration compares the value as stored" begin
+    @test EnumeratedFloat32(1.1).value === Float32(1.1)
+    @test isnan(EnumeratedFloat32(NaN).value)
+    @test_throws "is not one of the values" EnumeratedFloat32(1.2)
+end

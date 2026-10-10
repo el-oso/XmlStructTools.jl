@@ -71,7 +71,8 @@ end
 
     @test DateTimeNs{DateTime}("2022-05-10T10:22:49.1525575") === x
     @test DateTimeNs{DateTime}("2022-05-10T10:22:49.152") === DateTimeNs(base)
-    @test_throws "more than nine digits" DateTimeNs{DateTime}("2022-05-10T10:22:49.1525575001")
+    cut = @test_logs (:warn, r"anything below nanoseconds is cut off") DateTimeNs{DateTime}("2022-05-10T10:22:49.1525575001")
+    @test cut === x
     @test DateTimeNs{DateTime}("2022/05/10 10:22", "yyyy/mm/dd HH:MM") === DateTimeNs(DateTime(2022, 5, 10, 10, 22))
     @test parse(DateTimeNs{DateTime}, "2022-05-10T10:22:49.1525575") === x
     @test parse(DateTimeNs{DateTime}, "2022/05/10", dateformat"yyyy/mm/dd") === DateTimeNs(DateTime(2022, 5, 10))
@@ -147,6 +148,7 @@ end
 
     # an existing value is not wrapped again
     @test DateTimeNs(x) === x
+    @test_throws "cannot wrap another DateTimeNs" DateTimeNs(x, 5)
     @test DateTimeNs{DateTime}(x) === x
     @test convert(DateTimeNs, x) === x
     @test convert(Union{Nothing,DateTimeNs}, x) === x
@@ -158,6 +160,10 @@ end
 
     @test DateTimeNs(DateTime(2022, 5, 10)) == Date(2022, 5, 10)
     @test x != Date(2022, 5, 10)
+    # a zoned and an unzoned value are unequal, and their order is undetermined
+    @test !isequal(DateTimeNs(base), DateTimeNs(ZonedDateTime(base, tz"UTC")))
+    @test DateTimeNs(base) != DateTimeNs(ZonedDateTime(base, tz"UTC"))
+    @test_throws "no promotion exists" isless(DateTimeNs(base), DateTimeNs(ZonedDateTime(base, tz"UTC")))
 
     # the nanoseconds may be any number in range; `new` converts them
     @test DateTimeNs{DateTime}(base, 0x05) === DateTimeNs(base, 5)
@@ -165,6 +171,8 @@ end
     @test_throws InexactError DateTimeNs{DateTime}(base, 5.5)
     @test_throws "no single integer value" Dates.value(x)
     @test DateTimeNs{ZonedDateTime}("2000-01-01T00:00:00.1+01:00") == DateTimeNs(ZonedDateTime(2000, 1, 1, 0, 0, 0, 100, tz"UTC+1"))
+    @test DateTimeNs{ZonedDateTime}("2000-01-01T00:00:00Z") == DateTimeNs(ZonedDateTime(2000, 1, 1, tz"UTC"))
+    @test DateTimeNs{ZonedDateTime}("2000-01-01T00:00:00.123456789Z") == DateTimeNs(ZonedDateTime(2000, 1, 1, 0, 0, 0, 123, tz"UTC"), 456_789)
 
     @test string(DateTimeNs(DateTime(-1, 1, 2, 3, 4, 5, 6), 1)) == "-0001-01-02T03:04:05.006000001"
     @test string(DateTimeNs(DateTime(12, 1, 1))) == "0012-01-01T00:00:00"
@@ -172,4 +180,12 @@ end
     @test string(DateTimeNs(ZonedDateTime(DateTime(2022, 1, 1), FixedTimeZone("-00:00")))) == "2022-01-01T00:00:00Z"
     @test string(DateTimeNs(ZonedDateTime(DateTime(2022, 1, 1), FixedTimeZone("LMT", 1050)))) == "2022-01-01T00:00:00+00:17:30"
     @test string(zx) == "2022-05-10T10:22:49.1525575+02:00"
+end
+
+@testset "DateTimeNs - digits after the seconds" begin
+    @test AbstractXsdTypes.fraction_digit_count("2024-01-01T00:00:37") == 0
+    @test AbstractXsdTypes.fraction_digit_count("2024-01-01T00:00:37.1") == 1
+    @test AbstractXsdTypes.fraction_digit_count("2024-01-01T00:00:37.12+01:00") == 2
+    @test AbstractXsdTypes.fraction_digit_count("-0001-01-01T00:00:37.123456Z") == 6
+    @test AbstractXsdTypes.fraction_digit_count("2024-01-01") == 0
 end

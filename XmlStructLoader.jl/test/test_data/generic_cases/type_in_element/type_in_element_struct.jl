@@ -122,7 +122,7 @@ module documentTypeTypes
         end
     end
 
-    @inline AbstractXsdTypes.get_min_value(::Type{TestComplex3})::TestSimpleType2 = TestSimpleType2(0.00)
+    @inline AbstractXsdTypes.get_min_value(::Type{TestComplex3})::Float64 = 0.0
 
     @inline AbstractXsdTypes.is_min_exclusive(::Type{TestComplex3})::Bool = false
 

@@ -68,20 +68,17 @@ function write_restriction_functions(
 	return nothing
 end
 
+# Julia source for a bound with text `xsd_value_string` of the built-in Julia type `julia_type_string`.
 function get_value_string(julia_type_string::AbstractString, xsd_value_string::AbstractString)::String
 	if julia_type_string == built_in_data_type_dict["dateTime"]
 		# A zoned bound needs TimeZones, which the generator does not load, so the generated code
 		# builds the bound from its text.
-		value_string = construct_time_default_value(xsd_value_string)
+		return construct_time_default_value(xsd_value_string)
 	elseif julia_type_string == "Dates.CompoundPeriod"
-		value_string = duration_literal(xsd_value_string)
-	elseif julia_type_string in values(built_in_data_type_dict)
-		julia_type = julia_type_string |> Meta.parse |> eval
-		value_string = string(parse(julia_type, xsd_value_string))
-	else
-		value_string = julia_type_string * "($xsd_value_string)"
+		return duration_literal(xsd_value_string)
 	end
-	return value_string
+	julia_type = julia_type_string |> Meta.parse |> eval
+	return string(parse(julia_type, xsd_value_string))
 end
 
 function write_max_inclusive(
@@ -91,7 +88,7 @@ function write_max_inclusive(
 )::Nothing
 
 	struct_name = name(xsd_node)
-	julia_type_string = xsd_node.field.julia_type
+	julia_type_string = built_in_julia_type(xsd_node.field.julia_type, xsd_module_builder)
 	value_string = get_value_string(julia_type_string, xsd_node.restrictions[MAX_INCLUSIVE_KEY])
 
 	max_inclusive_string = """
@@ -116,7 +113,7 @@ function write_max_exclusive(
 )::Nothing
 
 	struct_name = name(xsd_node)
-	julia_type_string = xsd_node.field.julia_type
+	julia_type_string = built_in_julia_type(xsd_node.field.julia_type, xsd_module_builder)
 	value_string = get_value_string(julia_type_string, xsd_node.restrictions[MAX_EXCLUSIVE_KEY])
 
 	max_inclusive_string = """
@@ -141,7 +138,7 @@ function write_min_inclusive(
 )::Nothing
 
 	struct_name = name(xsd_node)
-	julia_type_string = xsd_node.field.julia_type
+	julia_type_string = built_in_julia_type(xsd_node.field.julia_type, xsd_module_builder)
 	value_string = get_value_string(julia_type_string, xsd_node.restrictions[MIN_INCLUSIVE_KEY])
 
 	min_inclusive_string = """
@@ -166,7 +163,7 @@ function write_min_exclusive(
 )::Nothing
 
 	struct_name = name(xsd_node)
-	julia_type_string = xsd_node.field.julia_type
+	julia_type_string = built_in_julia_type(xsd_node.field.julia_type, xsd_module_builder)
 	value_string = get_value_string(julia_type_string, xsd_node.restrictions[MIN_EXCLUSIVE_KEY])
 
 	min_inclusive_string = """
@@ -308,13 +305,6 @@ function xsd_pattern_regex(pattern::AbstractString)::Regex
 	end
 	escaped && throw(ArgumentError("the pattern $(repr(pattern)) ends in an unfinished escape"))
 	return Regex("\\A(?:" * String(take!(body)) * ")\\z")
-end
-
-# The built-in Julia type a simple type with value type `julia_type_string` derives from.
-function built_in_julia_type(julia_type_string::AbstractString, xsd_module_builder::XSDStructModuleBuilderType)::String
-	julia_type_string in values(built_in_data_type_dict) && return julia_type_string
-	base_node = first(filter(x -> name(x) == julia_type_string, get_defined_simple_nodes(xsd_module_builder)))
-	return built_in_julia_type(base_node.field.julia_type, xsd_module_builder)
 end
 
 # Julia source for the value with text `value` of the built-in Julia type `julia_type_string`.

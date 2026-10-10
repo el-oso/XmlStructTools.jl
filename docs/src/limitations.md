@@ -40,16 +40,18 @@ out. A pattern that subtracts a character class, such as `[a-z-[aeiou]]`, or tha
 PCRE does not know, such as `\i`, `\c` or a block name like `\p{IsBasicLatin}`, makes generation
 fail.
 
-A `dateTime` bound and value compare only when both have a zone offset or neither does; otherwise
-the check throws an `ArgumentError`, as XML Schema leaves their order undetermined. The same holds
-for a `duration` bound and value whose order XML Schema leaves undetermined, such as `P1M` and
-`P30D`: a month is shorter than 30 days in February and longer in July.
+A `dateTime` bound and value compare only when both have a zone offset or neither does, and a
+`duration` bound and value only when XML Schema determines their order: `P1M` and `P30D` do not
+compare, as a month is shorter than 30 days in February and longer in July. A value that does not
+compare with a bound is rejected with an `XSDValueRestrictionViolationError`, the error a value
+outside the bound gets.
 
 ## Times
 
-A `dateTime` with more than nine digits after the seconds is cut to nanoseconds, with a warning.
-The difference of two `DateTimeNs` values is in nanoseconds, which span about 292 years; a longer
-difference throws an `OverflowError`. Rounding below a millisecond takes only steps that divide it.
+A `dateTime` with more than nine digits after the seconds, in a document or in the schema, is cut
+to nanoseconds, with a warning. The difference of two `DateTimeNs` values is in nanoseconds, which
+span about 292 years; a longer difference throws an `OverflowError`. Rounding below a millisecond
+takes only steps that divide it.
 
 A `duration` with more than nine digits after the seconds is rejected. An `xs:duration` has one sign,
 so writing a `Dates.CompoundPeriod` whose periods have different signs, such as `Day(1) - Hour(1)`,

@@ -97,7 +97,7 @@ Base.@kwdef struct TestSimpleType4 <: AbstractXsdTypes.AbstractXSDSigned
     end
 end
 
-@inline AbstractXsdTypes.get_max_value(::Type{TestSimpleType4})::TestSimpleType3 = TestSimpleType3(500)
+@inline AbstractXsdTypes.get_max_value(::Type{TestSimpleType4})::Int64 = 500
 
 @inline AbstractXsdTypes.is_max_exclusive(::Type{TestSimpleType4})::Bool = false
 

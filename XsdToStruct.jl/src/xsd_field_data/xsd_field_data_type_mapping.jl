@@ -66,14 +66,13 @@ function parse_xsd_type_to_julia_type(type_string::AbstractString)::String
 end
 
 """
-    xsd_type_reference(type_string)
+    xsd_type_reference(type_string, namespaces)
 
 The reference `type_string`, read from a `type` or `base` attribute, with a reference into the
-XML Schema namespace written as `xs:name`. Prefixes resolve against the namespaces declared on the
-schema element, which `create_xsd_tree` holds in task-local storage while it reads.
+XML Schema namespace written as `xs:name`. Prefixes resolve against `namespaces`, the declarations
+of the schema element keyed by prefix, as `schema_namespaces` reads them.
 """
-function xsd_type_reference(type_string::AbstractString)::String
-    namespaces = task_local_storage(:xsd_namespaces)::Dict{String, String}
+function xsd_type_reference(type_string::AbstractString, namespaces::Dict{String, String})::String
     prefix, type_name = ':' in type_string ? split(type_string, ':'; limit = 2) : ("", type_string)
     namespace = get(namespaces, prefix, nothing)
     namespace == XML_SCHEMA_NAMESPACE && return "$BUILT_IN_PREFIX:$type_name"

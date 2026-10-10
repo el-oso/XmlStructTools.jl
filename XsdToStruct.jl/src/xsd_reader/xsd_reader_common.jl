@@ -1,15 +1,15 @@
-function parse_xsd_element_field(xsd_element::XMLElement)::FieldData
+function parse_xsd_element_field(xsd_element::XMLElement, namespaces::Dict{String, String})::FieldData
     # Extract a field name and field type from the given xsd element.
 
     attribute_dict = xsd_attributes_dict(xsd_element)
     element_name = pop!(attribute_dict, "name")
-    element_type = xsd_type_reference(pop!(attribute_dict, "type"))
+    element_type = xsd_type_reference(pop!(attribute_dict, "type"), namespaces)
 
     return FieldData(name = element_name, xsd_type = element_type, xsd_attributes = attribute_dict)
 end
 
-function parse_restriction(xsd_modification::XMLElement)::Dict{String, String}
-    restriction_dict = Dict{String, String}([("base", xsd_type_reference(xsd_attribute(xsd_modification, "base")))])
+function parse_restriction(xsd_modification::XMLElement, namespaces::Dict{String, String})::Dict{String, String}
+    restriction_dict = Dict{String, String}([("base", xsd_type_reference(xsd_attribute(xsd_modification, "base"), namespaces))])
 
     for child in xsd_child_elements(xsd_modification)
         facet = xsd_element_name(child)

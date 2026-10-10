@@ -20,19 +20,12 @@ function read_xsd(xsd_path::AbstractString)::SchemaTreeNode
     return xsd_tree
 end
 
-# Function to create xsd tree starting from a given xsd root element
+# Function to create xsd tree starting from a given xsd root element. Type references resolve
+# against the namespaces declared on the schema element; see `xsd_type_reference`.
 function create_xsd_tree(xsd_root::XMLElement)::SchemaTreeNode
     @debug "Starting to create xsd tree"
-    return with_schema_namespaces(() -> create_xsd_tree_in_scope(xsd_root), xsd_root)
-end
-
-# Type references in the schema resolve against its namespace declarations while `f` runs; see
-# `xsd_type_reference`.
-with_schema_namespaces(f, xsd_root::XMLElement) =
-    task_local_storage(f, :xsd_namespaces, schema_namespaces(xsd_attributes_dict(xsd_root)))
-
-function create_xsd_tree_in_scope(xsd_root::XMLElement)::SchemaTreeNode
     node_attributes = xsd_attributes_dict(xsd_root)
+    namespaces = schema_namespaces(node_attributes)
     xml_namespace = String(xsd_schema_module_name(xsd_root))
 
     child_nodes = Vector{AbstractTreeNode}()
@@ -42,21 +35,21 @@ function create_xsd_tree_in_scope(xsd_root::XMLElement)::SchemaTreeNode
         @debug "Parsing $(xsd_child_element)"
 
         if xsd_has_attribute(xsd_child_element, "type")
-            root_field = parse_xsd_element_field(xsd_child_element)
+            root_field = parse_xsd_element_field(xsd_child_element, namespaces)
         else
             child_name = xsd_element_name(xsd_child_element)
 
             if child_name == "element"
-                root_field, child_node = parse_xsd_element_child(xsd_child_element, xml_namespace)
+                root_field, child_node = parse_xsd_element_child(xsd_child_element, namespaces, xml_namespace)
                 push!(child_nodes, child_node)
             elseif child_name == "complexType"
-                child_node = parse_xsd_complex_type(xsd_child_element)
+                child_node = parse_xsd_complex_type(xsd_child_element, namespaces)
                 push!(child_nodes, child_node)
             elseif child_name == "simpleType"
-                child_node = parse_xsd_simple_type(xsd_child_element)
+                child_node = parse_xsd_simple_type(xsd_child_element, namespaces)
                 push!(child_nodes, child_node)
             elseif child_name == "group"
-                group_node = parse_xsd_group(xsd_child_element)
+                group_node = parse_xsd_group(xsd_child_element, namespaces)
                 push!(group_nodes, group_node)
             else
                 @warn("Unhandled child:\n$xsd_child_element")
@@ -84,6 +77,7 @@ end
 """
     parse_xsd_element_child(
         xsd_element::XMLElement,
+        namespaces::Dict{String, String},
         parent_name::AbstractString
     )::Tuple{FieldData, AbstractTreeNode}
 
@@ -91,6 +85,7 @@ Extract child node from xsd element with a type defined inside the element
 """
 function parse_xsd_element_child(
         xsd_element::XMLElement,
+        namespaces::Dict{String, String},
         parent_name::AbstractString,
     )::Tuple{FieldData, AbstractTreeNode}
     attribute_dict = xsd_attributes_dict(xsd_element)
@@ -109,26 +104,27 @@ function parse_xsd_element_child(
     type_node = xsd_find_element(xsd_element, "complexType")
     if isnothing(type_node)
         type_node = xsd_find_element(xsd_element, "simpleType")
-        child_node =
-            parse_xsd_simple_type(type_node, type_name, sub_module_name(parent_name), extra_docstring = xsd_docstring)
+        child_node = parse_xsd_simple_type(
+            type_node, namespaces, type_name, sub_module_name(parent_name), extra_docstring = xsd_docstring,
+        )
 
         if isnothing(type_node)
             @error("Unable to determine type for node:\n$(xsd_element)")
         end
     else
-        child_node = parse_xsd_complex_type(type_node, type_name, sub_module_name(parent_name))
+        child_node = parse_xsd_complex_type(type_node, namespaces, type_name, sub_module_name(parent_name))
     end
 
     return field, child_node
 end
 
-function parse_xsd_group(xsd_group::XMLElement)::ComplexTreeNode
+function parse_xsd_group(xsd_group::XMLElement, namespaces::Dict{String, String})::ComplexTreeNode
     node_attributes = xsd_attributes_dict(xsd_group)
     group_name = pop!(node_attributes, "name")
     xsd_sequence = xsd_find_element(xsd_group, "sequence")
 
     group_node = ComplexTreeNode(common_data = CommonNodeData(name = group_name, attributes = node_attributes))
-    parse_xsd_complex_content_sequence!(group_node, xsd_sequence)
+    parse_xsd_complex_content_sequence!(group_node, xsd_sequence, namespaces)
 
     return group_node
 end

@@ -9,6 +9,11 @@ using TimeZones
 
 const ZonedNs = DateTimeNs{ZonedDateTime}
 
+# The formats of `ZonedDateTime` text with no, one, two or three digits after the seconds.
+const ZONED_FORMATS = Tuple(DateFormat("yyyy-mm-ddTHH:MM:SS$(s)zzzzzz") for s in ("", ".s", ".ss", ".sss"))
+AbstractXsdTypes.parse_milliseconds(::Type{ZonedDateTime}, text::AbstractString, n_after_period::Int) =
+    ZonedDateTime(text, ZONED_FORMATS[n_after_period + 1])
+
 # XSD writes a zero offset as `Z`, and an offset as ±hh:mm; the seconds of an offset with them,
 # such as a local mean time, follow as `:ss`.
 function AbstractXsdTypes.print_offset(io::IO, zoned::ZonedDateTime)

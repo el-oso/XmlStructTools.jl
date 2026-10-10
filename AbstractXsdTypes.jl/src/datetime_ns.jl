@@ -39,6 +39,7 @@ struct DateTimeNs{T<:Dates.AbstractDateTime} <: Dates.AbstractDateTime
     nanoseconds::Int32
 
     function DateTimeNs{T}(datetime, nanoseconds = 0) where {T<:Dates.AbstractDateTime}
+        T <: DateTimeNs && throw(ArgumentError("a DateTimeNs cannot wrap another DateTimeNs, got $T"))
         0 <= nanoseconds < 1_000_000 ||
             throw(ArgumentError("nanoseconds below a millisecond must be in 0:999_999, got $nanoseconds"))
         return new{T}(datetime, nanoseconds)
@@ -79,17 +80,49 @@ DateTimeNs{T}(adjust::Function, args...; kwargs...) where {T<:Dates.AbstractDate
 DateTimeNs{T}(adjust::Function, y::Integer; kwargs...) where {T<:Dates.AbstractDateTime} =
     DateTimeNs{T}(T(adjust, y; kwargs...))
 
-# Text with up to nine digits after the seconds, in the forms the wrapped type parses. The wrapped
-# type is given exactly three digits, which its default format expects; the rest are the
-# nanoseconds.
+# Text in the forms the wrapped type parses, with any number of digits after the seconds: the
+# wrapped type parses the milliseconds, the next six digits are the nanoseconds, and digits below a
+# nanosecond are cut off with a warning.
 function DateTimeNs{T}(text::AbstractString) where {T<:Dates.AbstractDateTime}
-    m = match(r"^(.*T\d\d:\d\d:\d\d)\.(\d+)(.*)$", text)
-    isnothing(m) && return DateTimeNs{T}(T(text))
+    millisecond_text, n_after_period, nanoseconds = split_seconds(text)
+    return DateTimeNs{T}(parse_milliseconds(T, millisecond_text, n_after_period), nanoseconds)
+end
+
+# `millisecond_text` has `n_after_period` digits after the seconds, at most three.
+parse_milliseconds(::Type{T}, millisecond_text::AbstractString, n_after_period::Int) where {T} = T(millisecond_text)
+
+# The digits after the seconds of "...THH:MM:SS[.fff]", counted without the allocations of a regex
+# match. A string of another shape is left to the date parser to reject.
+function fraction_digit_count(text::AbstractString)::Int
+    bytes = codeunits(text)
+    t = findfirst(==(UInt8('T')), bytes)
+    isnothing(t) && return 0
+    i = t + ncodeunits("THH:MM:SS")
+    i <= lastindex(bytes) && bytes[i] == UInt8('.') && (i += 1)
+    start = i
+    while i <= lastindex(bytes) && UInt8('0') <= bytes[i] <= UInt8('9')
+        i += 1
+    end
+    return i - start
+end
+
+# Regex inspired by section 3.2.7.1 Lexical representation of
+# https://www.w3.org/TR/2004/REC-xmlschema-2-20041028/datatypes.html#dateTime
+const SECONDS_AFTER_PERIOD_REGEX = r"^(-?\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.?)(\d*)(.*)$"
+
+# Splits the digits after the seconds into the milliseconds, left in the text, and the nanoseconds
+# below them. Digits below a nanosecond are cut off with a warning.
+function split_seconds(text::AbstractString)::Tuple{String,Int,Int}
+    n_after_period = fraction_digit_count(text)
+    n_after_period <= 3 && return String(text), n_after_period, 0
+
+    m = match(SECONDS_AFTER_PERIOD_REGEX, text)
     fraction = m.captures[2]
-    length(fraction) <= 9 ||
-        throw(ArgumentError("\"$text\" has more than nine digits after the seconds, which DateTimeNs cannot hold"))
-    fraction = rpad(fraction, 9, '0')
-    return DateTimeNs{T}(T(m.captures[1] * "." * fraction[1:3] * m.captures[3]), parse(Int, fraction[4:9]))
+    if n_after_period > 9
+        @warn "dateTime with $n_after_period digits after the seconds, anything below nanoseconds is cut off." maxlog = 1
+    end
+    nanoseconds = parse(Int, rpad(fraction[4:min(end, 9)], 6, '0'))
+    return m.captures[1] * fraction[1:3] * m.captures[3], 3, nanoseconds
 end
 # A `DateFormat` resolves to the millisecond, so these give no nanoseconds.
 DateTimeNs{T}(text::AbstractString, format::Union{AbstractString,Dates.DateFormat}; kwargs...) where {T<:Dates.AbstractDateTime} =
@@ -158,7 +191,10 @@ Dates.format(io::IO, x::DateTimeNs, format::Dates.DateFormat) = Dates.format(io,
 Dates.format(x::DateTimeNs, format::Dates.DateFormat) = Dates.format(x.datetime, format)
 Dates.format(x::DateTimeNs, format::AbstractString; kwargs...) = Dates.format(x.datetime, format; kwargs...)
 
-Base.:(==)(x::DateTimeNs, y::DateTimeNs) = x.datetime == y.datetime && x.nanoseconds == y.nanoseconds
+# Values of different wrapped types, such as a zoned and an unzoned dateTime, are never equal; XSD
+# leaves their order undetermined, so `isless` still throws for them.
+Base.:(==)(x::DateTimeNs{S}, y::DateTimeNs{T}) where {S,T} =
+    S === T && x.datetime == y.datetime && x.nanoseconds == y.nanoseconds
 Base.isless(x::DateTimeNs, y::DateTimeNs) =
     isless(x.datetime, y.datetime) || (x.datetime == y.datetime && x.nanoseconds < y.nanoseconds)
 # Equal to the value it wraps when the nanoseconds are zero, so the hash must agree with it then.

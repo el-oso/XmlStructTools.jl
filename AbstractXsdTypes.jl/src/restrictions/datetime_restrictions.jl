@@ -1,11 +1,11 @@
 # bounds for an xs:dateTime value; a bound the schema does not give is `nothing`
 @inline function bound_restriction_check(::Type{T}, value::Dates.AbstractDateTime)::Nothing where {T<:AbstractXSDDateTime}
-    # The constructor checks the value before it is converted to the field's type.
-    value = DateTimeNs(value)
+    value = stored_value(T, value)
     max_value = get_max_value(T)
     min_value = get_min_value(T)
 
-    if !isnothing(max_value) && (is_max_exclusive(T) ? comparable(max_value, value) <= value : comparable(max_value, value) < value)
+    if !isnothing(max_value) &&
+       (is_max_exclusive(T) ? comparable(T, max_value, value) <= value : comparable(T, max_value, value) < value)
         throw(
             XSDValueRestrictionViolationError(
                 T,
@@ -14,7 +14,7 @@
             ),
         )
     elseif !isnothing(min_value) &&
-           (is_min_exclusive(T) ? value <= comparable(min_value, value) : value < comparable(min_value, value))
+           (is_min_exclusive(T) ? value <= comparable(T, min_value, value) : value < comparable(T, min_value, value))
         throw(
             XSDValueRestrictionViolationError(
                 T,
@@ -27,12 +27,14 @@
     return nothing
 end
 
-# XSD leaves the order of a dateTime with a zone offset and one without undetermined, so a bound
-# and a value compare only when both have an offset or neither does.
-function comparable(bound::DateTimeNs{S}, value::DateTimeNs{T}) where {S,T}
+# XSD leaves the order of a dateTime with a zone offset and one without undetermined, so a value
+# satisfies a bound only when both have an offset or neither does.
+function comparable(::Type{X}, bound::DateTimeNs{S}, value::DateTimeNs{T}) where {X,S,T}
     S === T || throw(
-        ArgumentError(
-            "cannot compare $value with the bound $bound: one has a zone offset and the other does not",
+        XSDValueRestrictionViolationError(
+            X,
+            value,
+            "Value $(value) cannot be checked against the bound $(bound) for $(X): one has a zone offset and the other does not.",
         ),
     )
     return bound

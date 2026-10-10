@@ -86,19 +86,19 @@ end
 const built_in_super_types = Dict(val => get_supertype(val) for val in values(built_in_data_type_dict))
 
 function get_simple_node_super_type(type_name::AbstractString, xsd_module_builder::XSDStructModuleBuilderType)::String
+	built_in_type = built_in_julia_type(type_name, xsd_module_builder)
+	haskey(xsd_abstract_type_by_julia_type, built_in_type) && return xsd_abstract_type_by_julia_type[built_in_type]
+	return xsd_abstract_type_map[built_in_super_types[built_in_type]]
+end
 
-	if haskey(xsd_abstract_type_by_julia_type, type_name)
-		super_type = xsd_abstract_type_by_julia_type[type_name]
-	elseif type_name in keys(built_in_super_types)
-		built_in_super_type = built_in_super_types[type_name]
-		super_type = xsd_abstract_type_map[built_in_super_type]
-	else
-		base_simple_node = first(filter(x -> name(x) == type_name, get_defined_simple_nodes(xsd_module_builder)))
-		super_type = get_simple_node_super_type(base_simple_node.field.julia_type, xsd_module_builder)
-	end
-
-	return super_type
-
+# The built-in Julia type a simple type with value type `julia_type_string` derives from.
+function built_in_julia_type(julia_type_string::AbstractString, xsd_module_builder::XSDStructModuleBuilderType)::String
+	julia_type_string in values(built_in_data_type_dict) && return julia_type_string
+	simple_nodes = get_defined_simple_nodes(xsd_module_builder)
+	index = findfirst(x -> name(x) == julia_type_string, simple_nodes)
+	isnothing(index) && throw(
+		ArgumentError("$julia_type_string is neither a built-in type nor a simple type defined in this schema"))
+	return built_in_julia_type(simple_nodes[index].field.julia_type, xsd_module_builder)
 end
 
 function print_string_methods(
@@ -151,7 +151,8 @@ const JULIA_SUPER_TYPES = Dict(
     "AbstractXsdTypes.AbstractXSDBinary" => "AbstractVector{UInt8}",
     # A single period such as `Day(1)` converts to the field's `Dates.CompoundPeriod`.
     "Dates.CompoundPeriod" => "Union{Dates.Period, Dates.CompoundPeriod}",
-    "AbstractXsdTypes.AbstractXSDDuration" => "Union{Dates.Period, Dates.CompoundPeriod}",
+    # A type restricting another restricted duration type is given a value of that type.
+    "AbstractXsdTypes.AbstractXSDDuration" => "Union{Dates.Period, Dates.CompoundPeriod, AbstractXsdTypes.AbstractXSDDuration}",
 )
 function write_inner_constructor(
 	xsd_node::SimpleTreeNode,

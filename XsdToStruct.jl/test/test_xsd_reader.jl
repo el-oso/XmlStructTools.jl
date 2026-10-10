@@ -1,3 +1,5 @@
+root_namespaces(xsd_root::XsdToStruct.XMLElement) = XsdToStruct.schema_namespaces(XsdToStruct.xsd_attributes_dict(xsd_root))
+
 function get_simple_type(xsd_root::XsdToStruct.XMLElement, name::String)
     elts = XsdToStruct.xsd_find_all_elements(xsd_root, "simpleType")
     xsd_element = first(el for el in elts if XsdToStruct.xsd_attribute(el, "name") == name)
@@ -6,7 +8,7 @@ end
 
 function get_simple_type_tree(xsd_root::XsdToStruct.XMLElement, name::String)
     xsd_element = get_simple_type(xsd_root, name)
-    tree = XsdToStruct.with_schema_namespaces(() -> XsdToStruct.parse_xsd_simple_type(xsd_element, name), xsd_root)
+    tree = XsdToStruct.parse_xsd_simple_type(xsd_element, root_namespaces(xsd_root), name)
     return tree
 end
 
@@ -35,7 +37,7 @@ end
         name = "TestDoubleRestrictedDouble"
         xsd_element = get_simple_type(xsd_root, name)
         @test XsdToStruct.is_union(xsd_element)
-        tree = XsdToStruct.with_schema_namespaces(() -> XsdToStruct.parse_xsd_simple_type(xsd_element, name), xsd_root)
+        tree = XsdToStruct.parse_xsd_simple_type(xsd_element, root_namespaces(xsd_root), name)
         @test length(tree.union_nodes) == 2
         @test XsdToStruct.qualified_name(tree.union_nodes[1]) == "$(name)Types.type_1"
         @test XsdToStruct.qualified_name(tree.union_nodes[2]) == "$(name)Types.type_2"
@@ -43,7 +45,7 @@ end
         name = "UnionType"
         xsd_element = get_simple_type(xsd_root, name)
         @test XsdToStruct.is_union(xsd_element)
-        tree = XsdToStruct.with_schema_namespaces(() -> XsdToStruct.parse_xsd_simple_type(xsd_element, name), xsd_root)
+        tree = XsdToStruct.parse_xsd_simple_type(xsd_element, root_namespaces(xsd_root), name)
         @test length(tree.union_nodes) == 2
         @test XsdToStruct.qualified_name(tree.union_nodes[1]) == "$(name)Types.type_1"
         @test XsdToStruct.qualified_name(tree.union_nodes[2]) == "$(name)Types.type_2"
@@ -64,7 +66,7 @@ end
         @test XsdToStruct.xsd_attribute(empty_element, "name") == "Element_empty"
 
         # this one errored in the past due to the empty element
-        tree1 = XsdToStruct.with_schema_namespaces(() -> XsdToStruct.parse_xsd_complex_type(TestComplexType1, "TestComplexType1"), xsd_root)
+        tree1 = XsdToStruct.parse_xsd_complex_type(TestComplexType1, root_namespaces(xsd_root), "TestComplexType1")
         @test tree1 isa XsdToStruct.ComplexTreeNode
         first_child_field = first(tree1.child_fields)
         @test first_child_field.name == XsdToStruct.xsd_attribute(empty_element, "name")
@@ -74,7 +76,7 @@ end
         @test isempty(empty_element_tree.fields)
 
         # second type is easier, it's just an extension of the first type
-        tree2 = XsdToStruct.with_schema_namespaces(() -> XsdToStruct.parse_xsd_complex_type(TestComplexType2, "TestComplexType2"), xsd_root)
+        tree2 = XsdToStruct.parse_xsd_complex_type(TestComplexType2, root_namespaces(xsd_root), "TestComplexType2")
         @test tree2 isa XsdToStruct.ExtensionTreeNode
         @test tree2.base_name == "TestComplexType1"
     end
@@ -110,10 +112,8 @@ end
     @test name_type.field.julia_type == "UInt8"
 
     write(xsd_path, replace(read(xsd_path, String), "xmlns=\"named\"" => "xmlns:xs=\"named\""))
-    @test_throws "binds the prefix `xs` to \"named\"" XsdToStruct.with_schema_namespaces(
-        () -> XsdToStruct.xsd_type_reference("xs:Name"),
-        XsdToStruct.xsd_doc_root(XsdToStruct.xsd_parse_file(xsd_path)),
-    )
+    xsd_root = XsdToStruct.xsd_doc_root(XsdToStruct.xsd_parse_file(xsd_path))
+    @test_throws "binds the prefix `xs` to \"named\"" XsdToStruct.xsd_type_reference("xs:Name", root_namespaces(xsd_root))
 end
 
 @testset "XsdToStruct - XSD patterns" begin

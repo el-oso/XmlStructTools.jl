@@ -89,14 +89,6 @@ end
     @test XmlStructLoader.element_field_mapping(flat_module) == Dict(:Fields => :fields, Symbol("a-b") => :a_b)
 end
 
-@testset "Edge tests load - dateTime fraction digits" begin
-    @test XmlStructLoader.fraction_digit_count("2024-01-01T00:00:37") == 0
-    @test XmlStructLoader.fraction_digit_count("2024-01-01T00:00:37.1") == 1
-    @test XmlStructLoader.fraction_digit_count("2024-01-01T00:00:37.12+01:00") == 2
-    @test XmlStructLoader.fraction_digit_count("-0001-01-01T00:00:37.123456Z") == 6
-    @test XmlStructLoader.fraction_digit_count("2024-01-01") == 0
-end
-
 @testset "Edge tests load - dateTime to the nanosecond" begin
     DateTimeNs = XmlStructLoader.AbstractXsdTypes.DateTimeNs
     parse_date = XmlStructLoader.parse_xml_date
@@ -170,6 +162,7 @@ end
     @test string(load_at("LocalAtMax", local_bounds, "2100-01-01T00:00:00.1525575")) == "2100-01-01T00:00:00.1525575"
     @test_throws XmlStructLoader.AbstractXsdTypes.XSDValueRestrictionViolationError load_at("LocalAbove", local_bounds, "2100-01-01T00:00:00.1525576")
     @test_throws "one has a zone offset and the other does not" load_at("Mixed", zoned_bounds, "2022-05-10T10:22:49")
+    @test_throws XmlStructLoader.AbstractXsdTypes.XSDValueRestrictionViolationError load_at("MixedKind", zoned_bounds, "2022-05-10T10:22:49")
 end
 
 @testset "Edge tests load - string facets" begin
@@ -251,4 +244,26 @@ end
     @test load_at("DoubleFirstDouble", union_of("xs:double", "xs:dateTime"), "1.5") == 1.5
     @test string(load_at("DoubleFirstDate", union_of("xs:double", "xs:dateTime"), stamp)) == stamp
     @test_throws "is not a value of any member" load_at("Neither", union_of("xs:double", "xs:dateTime"), "neither")
+    @test_throws XmlStructLoader.AbstractXsdTypes.XSDValueRestrictionViolationError load_at(
+        "NeitherKind", union_of("xs:double", "xs:dateTime"), "neither",
+    )
+end
+
+@testset "Edge tests load - bounds on a type restricting a restricted type" begin
+    stacked(name, base, bound) = """
+        <xs:simpleType name="Inner"><xs:restriction base="xs:$base"/></xs:simpleType>
+        <xs:simpleType name="At"><xs:restriction base="$name:Inner">
+            <xs:maxInclusive value="$bound"/>
+        </xs:restriction></xs:simpleType>"""
+    load_stacked(name, base, bound, text) =
+        Base.invokelatest(getproperty, load_at(name, stacked(name, base, bound), text), :value)
+    RestrictionError = XmlStructLoader.AbstractXsdTypes.XSDValueRestrictionViolationError
+
+    @test string(load_stacked("StackedAt", "dateTime", "2030-01-01T00:00:00", "2025-01-01T00:00:00")) ==
+          "2025-01-01T00:00:00"
+    @test_throws RestrictionError load_stacked("StackedAtLate", "dateTime", "2030-01-01T00:00:00", "2031-01-01T00:00:00")
+    @test load_stacked("StackedWait", "duration", "P1D", "PT1H") == Hour(1)
+    @test_throws RestrictionError load_stacked("StackedWaitLong", "duration", "P1D", "P2D")
+    @test load_stacked("StackedInt", "int", "10", "5") == 5
+    @test_throws RestrictionError load_stacked("StackedIntLarge", "int", "10", "11")
 end

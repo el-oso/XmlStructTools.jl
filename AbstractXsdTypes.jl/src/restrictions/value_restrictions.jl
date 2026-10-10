@@ -43,6 +43,8 @@ struct XSDStringRestrictionViolationError <: XSDRestrictionViolationError
     message::String
 end
 
+Base.showerror(io::IO, e::XSDRestrictionViolationError) = print(io, nameof(typeof(e)), ": ", e.message)
+
 """
     get_enumeration(T)
 
@@ -50,10 +52,21 @@ The values a value of the simple type `T` must be one of, from the schema's `enu
 """
 function get_enumeration end
 
+# The constructor checks a value before converting it, so a check that compares it with values the
+# schema gives first converts it to the type the field stores: a `Float64` checked against an
+# `xs:float` enumeration is compared as a `Float32`. A type restricting another restricted type
+# stores that type, so the walk goes on to the built-in type underneath, and a value of such a type
+# is unwrapped to its built-in value.
+stored_value(::Type{T}, value) where {T<:AbstractXSDSimpleTypes} = convert(built_in_value_type(T), built_in_value(value))
+built_in_value_type(::Type{T}) where {T<:AbstractXSDSimpleTypes} = built_in_value_type(fieldtype(T, :value))
+built_in_value_type(::Type{T}) where {T} = T
+built_in_value(value::AbstractXSDSimpleTypes) = built_in_value(value.value)
+built_in_value(value) = value
+
 # `isequal` rather than `==`, so that an enumerated `NaN` admits `NaN`.
 @inline function enumeration_check(::Type{T}, value)::Nothing where {T<:AbstractXSDSimpleTypes}
     allowed = get_enumeration(T)
-    any(isequal(value), allowed) && return nothing
+    any(isequal(stored_value(T, value)), allowed) && return nothing
     throw(
         XSDValueRestrictionViolationError(
             T,

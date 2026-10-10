@@ -97,54 +97,7 @@ end
 # Regex inspired by section 3.2.7.3 Timezones of
 # https://www.w3.org/TR/2004/REC-xmlschema-2-20041028/datatypes.html#dateTime
 const timezone_regex = r"((\+|-)\d\d:\d\d)|Z"
-# Built once: a format given as a string is parsed into a `DateFormat` on every call.
-const zoned_date_formats = Tuple(DateFormat("yyyy-mm-ddTHH:MM:SS$(s)zzzzzz") for s in ("", ".s", ".ss", ".sss"))
 function parse_xml_date(date_string::AbstractString)::AbstractXsdTypes.DateTimeNs
-    timezone_match = match(timezone_regex, date_string)
-    is_not_timezone_string = isnothing(timezone_match)
-
-    preparsed_string, n_after_period, nanoseconds = split_seconds(date_string)
-
-    if is_not_timezone_string
-        parsed_date = DateTime(preparsed_string, ISODateTimeFormat)
-    else
-        parsed_date = ZonedDateTime(preparsed_string, zoned_date_formats[n_after_period + 1])
-    end
-
-    return AbstractXsdTypes.DateTimeNs(parsed_date, nanoseconds)
-end
-
-# Regex inspired by section 3.2.7.1 Lexical representation of
-# https://www.w3.org/TR/2004/REC-xmlschema-2-20041028/datatypes.html#dateTime
-const seconds_after_period_regex = r"^(-?\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.?)(\d*)(.*)$"
-# The digits after the seconds of "...THH:MM:SS[.fff]", counted without the allocations of a regex
-# match. A string of another shape is left to the date parser to reject.
-function fraction_digit_count(date_string::AbstractString)::Int
-    bytes = codeunits(date_string)
-    t = findfirst(==(UInt8('T')), bytes)
-    isnothing(t) && return 0
-    i = t + ncodeunits("THH:MM:SS")
-    i <= lastindex(bytes) && bytes[i] == UInt8('.') && (i += 1)
-    start = i
-    while i <= lastindex(bytes) && UInt8('0') <= bytes[i] <= UInt8('9')
-        i += 1
-    end
-    return i - start
-end
-
-# Splits the digits after the seconds into the milliseconds, left in the string for the date parser,
-# and the nanoseconds below them. Digits below a nanosecond are cut off with a warning.
-@inline function split_seconds(date_string::AbstractString)::Tuple{String,Int,Int}
-    n_after_period = fraction_digit_count(date_string)
-    n_after_period <= 3 && return date_string, n_after_period, 0
-
-    seconds_after_period_match = match(seconds_after_period_regex, date_string)
-    fraction = seconds_after_period_match.captures[2]
-    if n_after_period > 9
-        @warn "dateTime element with $n_after_period digits after the seconds, anything below nanoseconds is cut off." maxlog = 1
-    end
-    nanoseconds = parse(Int, rpad(fraction[4:min(end, 9)], 6, '0'))
-    millisecond_string =
-        seconds_after_period_match.captures[1] * fraction[1:3] * seconds_after_period_match.captures[3]
-    return millisecond_string, 3, nanoseconds
+    isnothing(match(timezone_regex, date_string)) && return AbstractXsdTypes.DateTimeNs{DateTime}(date_string)
+    return AbstractXsdTypes.DateTimeNs{ZonedDateTime}(date_string)
 end

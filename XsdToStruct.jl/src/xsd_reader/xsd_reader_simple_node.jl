@@ -1,5 +1,6 @@
 function parse_xsd_simple_type(
         xsd_simple::XMLElement,
+        namespaces::Dict{String, String},
         type_name::Union{Nothing, AbstractString} = nothing,
         sub_module::Union{Nothing, AbstractString} = nothing;
         extra_docstring::Union{Nothing, AbstractString} = nothing,
@@ -28,7 +29,7 @@ function parse_xsd_simple_type(
         for (index, union_child) in enumerate(xsd_child_elements(xsd_union))
             child_type_name = "type_$(index)"
             this_sub_module = sub_module_name(type_name)
-            this_node = parse_xsd_simple_type(union_child, child_type_name, this_sub_module)
+            this_node = parse_xsd_simple_type(union_child, namespaces, child_type_name, this_sub_module)
             push!(nodes, this_node)
         end
 
@@ -37,7 +38,7 @@ function parse_xsd_simple_type(
         @debug "Creating simple node for $(type_name)"
 
         xsd_restriction = xsd_find_element(xsd_simple, "restriction")
-        restrictions = parse_restriction(xsd_restriction)
+        restrictions = parse_restriction(xsd_restriction, namespaces)
 
         if isnothing(sub_module)
             field_data = FieldData(; name = "value", xsd_type = pop!(restrictions, "base"))

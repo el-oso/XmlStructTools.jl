@@ -93,7 +93,13 @@ each. Where they do not, as for `P1M` and `P30D`, XML Schema leaves the order un
 throws an `ArgumentError`.
 """
 function compare_durations(a::Dates.CompoundPeriod, b::Dates.CompoundPeriod)::Int
+    order = duration_order(a, b)
+    isnothing(order) && throw(ArgumentError("the order of the durations $a and $b is undetermined"))
+    return order
+end
+
+# As `compare_durations`, with `nothing` where the order is undetermined.
+function duration_order(a::Dates.CompoundPeriod, b::Dates.CompoundPeriod)::Union{Nothing,Int}
     orders = map(t -> cmp(t + a, t + b), DURATION_REFERENCE_TIMES)
-    allequal(orders) || throw(ArgumentError("the order of the durations $a and $b is undetermined"))
-    return first(orders)
+    return allequal(orders) ? first(orders) : nothing
 end
