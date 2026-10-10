@@ -105,6 +105,7 @@ function is_based_on_string(field_data::AbstractFieldData, xsd_module_builder::X
 end
 
 is_defined(type_name::AbstractString, xsd_module_builder::XSDStructModuleBuilderType)::Bool = (
+    (type_name in values(built_in_data_type_dict)) ||
     ((split(type_name, ".") |> last) in values(built_in_data_type_dict)) ||
     (type_name in defined_node_names(xsd_module_builder))
 )

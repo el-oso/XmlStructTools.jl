@@ -1,5 +1,5 @@
 function parse_extension(xsd_extension::XMLElement)::Tuple{String, Dict{String, String}}
-    extension_base_type = xsd_attribute(xsd_extension, "base")
+    extension_base_type = xsd_type_reference(xsd_attribute(xsd_extension, "base"))
     extension_attributes = Dict{String, String}()
 
     # get added attributes

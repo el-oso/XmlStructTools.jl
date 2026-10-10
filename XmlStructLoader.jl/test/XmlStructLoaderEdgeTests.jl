@@ -172,6 +172,72 @@ end
     @test_throws "one has a zone offset and the other does not" load_at("Mixed", zoned_bounds, "2022-05-10T10:22:49")
 end
 
+@testset "Edge tests load - string facets" begin
+    restricted = """
+        <xs:simpleType name="At"><xs:restriction base="xs:string">
+            <xs:minLength value="3"/><xs:maxLength value="4"/>
+            <xs:pattern value="[A-Z]+\$"/><xs:pattern value="x^y"/>
+        </xs:restriction></xs:simpleType>"""
+    fixed = """
+        <xs:simpleType name="At"><xs:restriction base="xs:token"><xs:length value="3"/></xs:restriction></xs:simpleType>"""
+    RestrictionError = XmlStructLoader.AbstractXsdTypes.XSDValueRestrictionViolationError
+
+    # `^` and `$` are ordinary characters in an XSD pattern, and either pattern admits a value.
+    @test load_at("PatternDollar", restricted, "AB\$") == "AB\$"
+    @test load_at("PatternCaret", restricted, "x^y") == "x^y"
+    @test_throws RestrictionError load_at("PatternWhole", restricted, "AB\$c")
+    @test_throws "is less than the minimum length (3)" load_at("TooShort", restricted, "A\$")
+    @test_throws "exceeds the maximum length (4)" load_at("TooLong", restricted, "ABCD\$")
+    @test load_at("LengthExact", fixed, "abc") == "abc"
+    @test_throws "is less than the minimum length (3)" load_at("LengthShort", fixed, "ab")
+end
+
+@testset "Edge tests load - enumerations" begin
+    words = """
+        <xs:simpleType name="At"><xs:restriction base="xs:string">
+            <xs:enumeration value="a\$b"/><xs:enumeration value="CRED"/>
+        </xs:restriction></xs:simpleType>"""
+    floats = """
+        <xs:simpleType name="At"><xs:restriction base="xs:float">
+            <xs:enumeration value="0.1"/><xs:enumeration value="NaN"/>
+        </xs:restriction></xs:simpleType>"""
+
+    @test load_at("WordDollar", words, "a\$b") == "a\$b"
+    @test_throws "is not one of the values" load_at("WordOther", words, "DEBT")
+    @test load_at("FloatTenth", floats, "0.1") === 0.1f0
+    @test isnan(load_at("FloatNaN", floats, "NaN"))
+    @test_throws XmlStructLoader.AbstractXsdTypes.XSDValueRestrictionViolationError load_at("FloatOther", floats, "0.2")
+end
+
+@testset "Edge tests load - built-in types" begin
+    built_in(base) = """<xs:simpleType name="At"><xs:restriction base="xs:$base"/></xs:simpleType>"""
+
+    @test load_at("UnsignedByte", built_in("unsignedByte"), "200") === 0xc8
+    @test load_at("Short", built_in("short"), "-3") === Int16(-3)
+    @test load_at("Float", built_in("float"), "1.5") === 1.5f0
+    @test load_at("AnyURI", built_in("anyURI"), "https://example.com") == "https://example.com"
+    @test load_at("Duration", built_in("duration"), "-P1DT0.5S") == -(Day(1) + Millisecond(500))
+    @test_throws "is not an xs:duration" load_at("NotDuration", built_in("duration"), "1 day")
+end
+
+@testset "Edge tests load - restricted durations" begin
+    bounded = """
+        <xs:simpleType name="At"><xs:restriction base="xs:duration">
+            <xs:minExclusive value="PT0S"/><xs:maxInclusive value="P30D"/>
+        </xs:restriction></xs:simpleType>"""
+    steps = """
+        <xs:simpleType name="At"><xs:restriction base="xs:duration">
+            <xs:enumeration value="PT15M"/><xs:enumeration value="PT1H"/>
+        </xs:restriction></xs:simpleType>"""
+
+    @test load_at("WaitHours", bounded, "PT720H") == Day(30)
+    @test_throws "exceeds the maximum value P30D" load_at("WaitLong", bounded, "P30DT1S")
+    @test_throws "is less than the minimum value PT0S" load_at("WaitZero", bounded, "P0D")
+    @test_throws "is undetermined" load_at("WaitMonth", bounded, "P1M")
+    @test load_at("StepHour", steps, "PT60M") == Hour(1)
+    @test_throws "is not one of the values" load_at("StepOther", steps, "PT30M")
+end
+
 @testset "Edge tests load - unions take the first member that accepts the text" begin
     union_of(first_base, second_base) = """
         <xs:simpleType name="At"><xs:union>

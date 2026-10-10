@@ -43,6 +43,27 @@ struct XSDStringRestrictionViolationError <: XSDRestrictionViolationError
     message::String
 end
 
+"""
+    get_enumeration(T)
+
+The values a value of the simple type `T` must be one of, from the schema's `enumeration` facets.
+"""
+function get_enumeration end
+
+# `isequal` rather than `==`, so that an enumerated `NaN` admits `NaN`.
+@inline function enumeration_check(::Type{T}, value)::Nothing where {T<:AbstractXSDSimpleTypes}
+    allowed = get_enumeration(T)
+    any(isequal(value), allowed) && return nothing
+    throw(
+        XSDValueRestrictionViolationError(
+            T,
+            value,
+            "Value $(repr(value)) is not one of the values $(join(repr.(allowed), ", ")) allowed for $(T).",
+        ),
+    )
+end
+
 include("numeric_restrictions.jl")
 include("string_restrictions.jl")
 include("datetime_restrictions.jl")
+include("duration_restrictions.jl")

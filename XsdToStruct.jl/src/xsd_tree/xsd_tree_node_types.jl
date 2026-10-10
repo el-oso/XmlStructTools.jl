@@ -21,6 +21,8 @@ Base.@kwdef struct SimpleTreeNode <: AbstractTreeNode
     common_data::CommonNodeData
     field::FieldData
     restrictions::OptionalDictStringString = nothing
+    # Each `enumeration` facet adds one allowed value, so the values are kept apart from `restrictions`.
+    enumeration::Vector{String} = String[]
 end
 
 xsd_restrictions(node::SimpleTreeNode)::OptionalDictStringString = node.restrictions

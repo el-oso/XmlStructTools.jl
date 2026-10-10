@@ -3,20 +3,32 @@ function parse_xsd_element_field(xsd_element::XMLElement)::FieldData
 
     attribute_dict = xsd_attributes_dict(xsd_element)
     element_name = pop!(attribute_dict, "name")
-    element_type = pop!(attribute_dict, "type")
+    element_type = xsd_type_reference(pop!(attribute_dict, "type"))
 
     return FieldData(name = element_name, xsd_type = element_type, xsd_attributes = attribute_dict)
 end
 
 function parse_restriction(xsd_modification::XMLElement)::Dict{String, String}
-    restriction_dict = Dict{String, String}([("base", xsd_attribute(xsd_modification, "base"))])
+    restriction_dict = Dict{String, String}([("base", xsd_type_reference(xsd_attribute(xsd_modification, "base")))])
 
     for child in xsd_child_elements(xsd_modification)
-        restriction_dict[xsd_element_name(child)] = xsd_attribute(child, "value")
+        facet = xsd_element_name(child)
+        value = xsd_attribute(child, "value")
+        if facet == "enumeration" || facet == "annotation"
+            continue
+        elseif facet == "pattern" && haskey(restriction_dict, "pattern")
+            # Patterns in one restriction are alternatives: a value matches any one of them.
+            restriction_dict["pattern"] = "($(restriction_dict["pattern"]))|($value)"
+        else
+            restriction_dict[facet] = value
+        end
     end
 
     return restriction_dict
 end
+
+parse_enumeration(xsd_restriction::XMLElement)::Vector{String} =
+    [xsd_attribute(facet, "value") for facet in xsd_find_all_elements(xsd_restriction, "enumeration")]
 
 function get_xsd_docstring(
         xsd_node::XMLElement;

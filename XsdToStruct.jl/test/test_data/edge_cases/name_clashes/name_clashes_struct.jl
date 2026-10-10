@@ -32,6 +32,12 @@ Base.@kwdef struct Float64_mapped <: AbstractXsdTypes.AbstractXSDString
     end
 end
 
+@inline AbstractXsdTypes.get_max_string_length(::Type{Float64_mapped})::Int = 4
+@inline AbstractXsdTypes.get_string_pattern_regex(::Type{Float64_mapped})::Regex = r"\A(?:([0-9A-Z]{4})?)\z"
+
+@inline AbstractXsdTypes.get_restriction_checks(::Type{Float64_mapped}) = (
+    AbstractXsdTypes.string_pattern_restriction_check, AbstractXsdTypes.string_length_restriction_check,)
+
 export Float64_mapped
 
 """
@@ -62,6 +68,12 @@ Base.@kwdef struct TestElement3_mapped <: AbstractXsdTypes.AbstractXSDString
         return new(value, __xml_attributes, __validated)
     end
 end
+
+@inline AbstractXsdTypes.get_max_string_length(::Type{TestElement3_mapped})::Int = 4
+@inline AbstractXsdTypes.get_string_pattern_regex(::Type{TestElement3_mapped})::Regex = r"\A(?:([0-9A-Z]{4})?)\z"
+
+@inline AbstractXsdTypes.get_restriction_checks(::Type{TestElement3_mapped}) = (
+    AbstractXsdTypes.string_pattern_restriction_check, AbstractXsdTypes.string_length_restriction_check,)
 
 export TestElement3_mapped
 

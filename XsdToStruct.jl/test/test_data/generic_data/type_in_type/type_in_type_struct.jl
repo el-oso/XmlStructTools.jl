@@ -24,6 +24,12 @@ Base.@kwdef struct TestSimpleType1 <: AbstractXsdTypes.AbstractXSDString
     end
 end
 
+@inline AbstractXsdTypes.get_max_string_length(::Type{TestSimpleType1})::Int = 4
+@inline AbstractXsdTypes.get_string_pattern_regex(::Type{TestSimpleType1})::Regex = r"\A(?:([0-9A-Z]{4})?)\z"
+
+@inline AbstractXsdTypes.get_restriction_checks(::Type{TestSimpleType1}) = (
+    AbstractXsdTypes.string_pattern_restriction_check, AbstractXsdTypes.string_length_restriction_check,)
+
 export TestSimpleType1
 
 module TestComplexType1Types
@@ -100,6 +106,12 @@ Base.@kwdef struct TestSimpleType2 <: AbstractXsdTypes.AbstractXSDString
         return new(value, __xml_attributes, __validated)
     end
 end
+
+@inline AbstractXsdTypes.get_max_string_length(::Type{TestSimpleType2})::Int = 4
+@inline AbstractXsdTypes.get_string_pattern_regex(::Type{TestSimpleType2})::Regex = r"\A(?:([0-9A-Z]{4})?)\z"
+
+@inline AbstractXsdTypes.get_restriction_checks(::Type{TestSimpleType2}) = (
+    AbstractXsdTypes.string_pattern_restriction_check, AbstractXsdTypes.string_length_restriction_check,)
 
 export TestSimpleType2
 

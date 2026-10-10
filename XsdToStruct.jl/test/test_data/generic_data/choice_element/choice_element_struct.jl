@@ -66,6 +66,12 @@ module TestComplexType2Types
         end
     end
 
+    @inline AbstractXsdTypes.get_max_string_length(::Type{choice3})::Int = 4
+    @inline AbstractXsdTypes.get_string_pattern_regex(::Type{choice3})::Regex = r"\A(?:([0-9A-Z]{4})?)\z"
+
+    @inline AbstractXsdTypes.get_restriction_checks(::Type{choice3}) = (
+        AbstractXsdTypes.string_pattern_restriction_check, AbstractXsdTypes.string_length_restriction_check,)
+
 end
 
 export TestComplexType2Types

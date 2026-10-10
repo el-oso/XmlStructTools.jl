@@ -240,6 +240,32 @@ abstract type AbstractXSDBinary end
 can_be_converted(from::Type{<:AbstractVector{UInt8}}, to::Type{<:AbstractXSDBinary}) = true
 
 """
+	AbstractXSDDuration
+
+Abstract type for XSD types whose value is a span of time, as `xs:duration` is. The `value` field
+holds a `Dates.CompoundPeriod`.
+
+```jldoctest
+import AbstractXsdTypes: AbstractXSDDuration
+using Dates
+
+struct WaitType <: AbstractXSDDuration
+    value::Dates.CompoundPeriod
+    __xml_attributes::Union{Nothing, Dict{String, String}}
+    __validated::Bool
+end
+WaitType(Day(1) + Hour(2), nothing, true).value == Day(1) + Hour(2)
+
+# output
+
+true
+```
+"""
+abstract type AbstractXSDDuration end
+
+can_be_converted(from::Type{<:Union{Dates.Period,Dates.CompoundPeriod}}, to::Type{<:AbstractXSDDuration}) = true
+
+"""
     AbstractXSDComplex
 
 Abstract type used for complex XSD structs.
@@ -346,7 +372,7 @@ end
 # Collections of XSD types
 const AbstractXSDNumericTypes = Union{AbstractXSDFloat,AbstractXSDUnsigned,AbstractXSDSigned}
 const AbstractXSDSimpleTypes =
-    Union{AbstractXSDNumericTypes,AbstractXSDString,AbstractXSDDateTime,AbstractXSDDate,AbstractXSDTime,AbstractXSDBinary}
+    Union{AbstractXSDNumericTypes,AbstractXSDString,AbstractXSDDateTime,AbstractXSDDate,AbstractXSDTime,AbstractXSDBinary,AbstractXSDDuration}
 const AbstractXSDSimpleUnionTypes = Union{AbstractXSDSimpleTypes,AbstractXSDUnion}
 const AbstractXSDAllTypes = Union{AbstractXSDSimpleTypes,AbstractXSDComplex,AbstractXSDUnion}
 

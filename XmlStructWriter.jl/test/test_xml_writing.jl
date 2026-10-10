@@ -112,6 +112,43 @@ end
     @test XmlStructWriter.field_element_names(flat_module) == Dict(:fields => "Fields", :a_b => "a-b")
 end
 
+@testset "writing - durations" begin
+    dir = mktempdir()
+    xsd_path = joinpath(dir, "Durations.xsd")
+    write(
+        xsd_path,
+        """
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:Durations="Durations" targetNamespace="Durations">
+            <xs:element name="document" type="Durations:documentType"/>
+            <xs:simpleType name="Wait"><xs:restriction base="xs:duration">
+                <xs:maxInclusive value="P1D"/>
+            </xs:restriction></xs:simpleType>
+            <xs:complexType name="documentType"><xs:sequence>
+                <xs:element name="at" type="xs:duration"/>
+                <xs:element name="many" type="xs:duration" maxOccurs="unbounded"/>
+                <xs:element name="wait" type="Durations:Wait"/>
+                <xs:element name="fallback" type="xs:duration" default="PT1H" minOccurs="0"/>
+            </xs:sequence></xs:complexType>
+        </xs:schema>
+        """,
+    )
+    module_dir = dirname(xsd_to_struct_module(xsd_path, dir))
+    xml_path = joinpath(dir, "document.xml")
+    write(
+        xml_path,
+        """<?xml version="1.0"?><Durations:document xmlns:Durations="Durations">""" *
+        "<at>-P1Y2M3DT4H5M6.5S</at><many>P1D</many><many>PT0S</many><wait>PT0.25S</wait><fallback></fallback>" *
+        "</Durations:document>",
+    )
+    output_path = joinpath(dir, "written.xml")
+    write_xml(load(xml_path, module_dir), output_path)
+
+    # The empty `fallback` is written with the schema's default.
+    expected_path = joinpath(dir, "expected.xml")
+    write(expected_path, replace(read(xml_path, String), "<fallback></fallback>" => "<fallback>PT1H</fallback>"))
+    @test compare_xml_files(expected_path, output_path)
+end
+
 @testset "writing - a type no generated module carries" begin
     @test isnothing(XmlStructWriter.generated_module(Int))
     @test isempty(XmlStructWriter.field_element_names(nothing))

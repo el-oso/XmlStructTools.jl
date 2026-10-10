@@ -19,7 +19,7 @@
         complex2 = TestComplexAndSimple.TestComplexType6("Element_string", 1e-5, DateTime(2014, 5, 30, 21))
         @test complex2 isa TestComplexAndSimple.TestComplexType6
 
-        simple = TestComplexAndSimple.TestSimpleType1("value")
+        simple = TestComplexAndSimple.TestSimpleType1("AB12")
         @test simple isa TestComplexAndSimple.TestSimpleType1
 
         doc_type = TestComplexAndSimple.documentType(complex, simple, complex2)
@@ -35,7 +35,7 @@
         @test complex_1 isa TestChoice.TestComplexType1
 
         complex_2 = TestChoice.TestComplexType2(
-            choice3 = TestChoice.TestComplexType2Types.choice3("choice3"),  # Should eventually just be "choice3"
+            choice3 = TestChoice.TestComplexType2Types.choice3("CH03"),  # Should eventually just be "CH03"
         )
         @test complex_2 isa TestChoice.TestComplexType2
 
@@ -169,7 +169,7 @@
         complex3_defaults = OptionalElements.AbstractXsdTypes.defaults(OptionalElements.TestComplexType3)
         complex3 = OptionalElements.TestComplexType3(
             Element_simple1 = fill(complex3_defaults.Element_simple1, 10),
-            Element_simple2 = ["Element_string", "Element_string", "Element_string"],
+            Element_simple2 = ["AB12", "CD34", "EF56"],
         )
         @test complex3 isa OptionalElements.TestComplexType3
 
@@ -224,7 +224,7 @@
         include(joinpath(generic_data_dir, "type_in_element", "type_in_element.jl"))
         import .TestTypeInElement
 
-        simple_2 = TestTypeInElement.documentTypeTypes.TestSimple2("aaa")
+        simple_2 = TestTypeInElement.documentTypeTypes.TestSimple2("AAAA")
         @test simple_2 isa TestTypeInElement.documentTypeTypes.TestSimple2
 
         complex_1 = TestTypeInElement.documentTypeTypes.TestComplex1(
@@ -234,7 +234,7 @@
         )
         @test complex_1 isa TestTypeInElement.documentTypeTypes.TestComplex1
 
-        complex_2 = TestTypeInElement.documentTypeTypes.TestComplex2("ccc")
+        complex_2 = TestTypeInElement.documentTypeTypes.TestComplex2("CCCC")
         @test complex_2 isa TestTypeInElement.documentTypeTypes.TestComplex2
 
         complex_3 = TestTypeInElement.documentTypeTypes.TestComplex3(7.7)
@@ -261,7 +261,7 @@
         )
         @test a_element isa TestTypeInType.TestComplexType1Types.A
 
-        b_element = TestTypeInType.TestComplexType1Types.B(value = "aaa")
+        b_element = TestTypeInType.TestComplexType1Types.B(value = "AAAA")
         @test b_element isa TestTypeInType.TestComplexType1Types.B
 
         c_element = TestTypeInType.TestComplexType1Types.C(
@@ -274,10 +274,10 @@
         complex1 = TestTypeInType.TestComplexType1(A = a_element, B = b_element, C = c_element)
         @test complex1 isa TestTypeInType.TestComplexType1
 
-        complex2 = TestTypeInType.TestComplexType2(A = "a_value", B = "b_value")
+        complex2 = TestTypeInType.TestComplexType2(A = "AAAA", B = "BBBB")
         @test complex2 isa TestTypeInType.TestComplexType2
 
-        complex3 = TestTypeInType.TestComplexType3(A = "a_value", S1 = "S1_value", B = "b_value", S2 = "S2_value")
+        complex3 = TestTypeInType.TestComplexType3(A = "AAAA", S1 = "S1S1", B = "BBBB", S2 = "S2S2")
         @test complex3 isa TestTypeInType.TestComplexType3
 
         doc_type =

@@ -23,7 +23,15 @@ end
 # Function to create xsd tree starting from a given xsd root element
 function create_xsd_tree(xsd_root::XMLElement)::SchemaTreeNode
     @debug "Starting to create xsd tree"
+    return with_schema_namespaces(() -> create_xsd_tree_in_scope(xsd_root), xsd_root)
+end
 
+# Type references in the schema resolve against its namespace declarations while `f` runs; see
+# `xsd_type_reference`.
+with_schema_namespaces(f, xsd_root::XMLElement) =
+    task_local_storage(f, :xsd_namespaces, schema_namespaces(xsd_attributes_dict(xsd_root)))
+
+function create_xsd_tree_in_scope(xsd_root::XMLElement)::SchemaTreeNode
     node_attributes = xsd_attributes_dict(xsd_root)
     xml_namespace = String(xsd_schema_module_name(xsd_root))
 

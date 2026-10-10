@@ -50,6 +50,11 @@ module TestDoubleRestrictedDoubleTypes
         end
     end
 
+    @inline AbstractXsdTypes.get_enumeration(::Type{type_2}) = (Float64(NaN),)
+
+    @inline AbstractXsdTypes.get_restriction_checks(::Type{type_2}) = (
+        AbstractXsdTypes.enumeration_check,)
+
 end
 
 export TestDoubleRestrictedDoubleTypes

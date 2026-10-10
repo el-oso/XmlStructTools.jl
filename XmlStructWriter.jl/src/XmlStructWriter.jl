@@ -237,6 +237,8 @@ end
 
 @inline generate_xml_string(bytes::AbstractVector{UInt8})::String = Base64.base64encode(bytes)
 
+generate_xml_string(duration::AbstractXsdTypes.Dates.CompoundPeriod)::String = AbstractXsdTypes.xsd_duration_string(duration)
+
 @inline function generate_xml_string(s::String)::String
     @debug "Generating XML string from $s"
     return s

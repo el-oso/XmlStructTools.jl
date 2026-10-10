@@ -466,6 +466,8 @@ function generate_defaults_string(
         # wrap default value with appropriate constructor
         if field_data.julia_type == "Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}"
             defaults_value = construct_time_default_value(default_value)
+        elseif field_data.julia_type == "Dates.CompoundPeriod"
+            defaults_value = duration_literal(default_value)
         else
             defaults_value = "$(full_field_type)($(default_value))"
         end
@@ -480,6 +482,9 @@ end
 # Regex inspired by section 3.2.7.3 Timezones of
 # https://www.w3.org/TR/2004/REC-xmlschema-2-20041028/datatypes.html#dateTime
 const timezone_regex = r"((\+|-)\d\d:\d\d)|Z"
+# The generated code that builds an `xs:duration` value from its XSD text.
+duration_literal(text::AbstractString)::String = "$ABSTRACT_TYPE_PACKAGE.parse_xsd_duration($(repr(text)))"
+
 # The generated code that builds an `xs:dateTime` value from its XSD text, as a default or a bound.
 function construct_time_default_value(default_value::AbstractString)::String
     wrapped_type = isnothing(match(timezone_regex, default_value)) ? "DateTime" : "ZonedDateTime"

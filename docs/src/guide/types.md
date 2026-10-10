@@ -32,6 +32,7 @@ classDiagram
     TimeType <|-- AbstractXSDDate
     TimeType <|-- AbstractXSDTime
     AbstractXSDBinary
+    AbstractXSDDuration
     AbstractXSDUnion
     AbstractXSDComplex <|-- Line
     AbstractXSDComplex <|-- Order
@@ -96,15 +97,22 @@ The generator turns these facets into checks:
 
 | Facet | Applies to |
 |:--|:--|
-| `minInclusive`, `maxInclusive`, `minExclusive`, `maxExclusive` | numbers, `dateTime` |
+| `minInclusive`, `maxInclusive`, `minExclusive`, `maxExclusive` | numbers, `dateTime`, `duration` |
 | `totalDigits`, `fractionDigits` | numbers |
+| `length`, `minLength`, `maxLength`, `pattern` | strings |
+| `enumeration` | strings, numbers, dates, times and durations |
 
-The facets that restrict strings (`length`, `minLength`, `maxLength`, `pattern` and `enumeration`)
-are not checked: a `Sku` accepts any string, although the schema requires the form `ABC-1234`.
+A `Sku` must have the form `ABC-1234`, as its pattern requires:
 
 ```@example types
-Sku("not a sku").value
+try
+    Sku("not a sku")
+catch err
+    err.message
+end
 ```
+
+An XSD pattern matches the whole value, so the generated `Regex` is anchored at both ends.
 
 ## Choices
 

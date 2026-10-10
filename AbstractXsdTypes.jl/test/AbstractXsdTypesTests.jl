@@ -14,6 +14,7 @@ end
 
 include("type_tests.jl")
 include("datetime_ns_tests.jl")
+include("duration_tests.jl")
 include(joinpath("restriction_tests", "restriction_tests.jl"))
 include(joinpath("conversion_tests", "conversion_tests.jl"))
 include(joinpath("mathematics_functions_tests", "mathematics_functions_tests.jl"))

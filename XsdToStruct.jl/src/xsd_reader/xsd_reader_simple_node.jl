@@ -47,8 +47,8 @@ function parse_xsd_simple_type(
             # check if the base type already specifies a module
             split_type = split(base_type, ":")
 
-            if length(split_type) == 1
-                # no module specified
+            if length(split_type) == 1 || first(split_type) == BUILT_IN_PREFIX
+                # no module specified, or a built-in type
                 field_data = FieldData(; name = "value", xsd_type = base_type, sub_module = sub_module)
             else
                 # module specified, get type name and qualified module name
@@ -58,7 +58,12 @@ function parse_xsd_simple_type(
             end
         end
 
-        return SimpleTreeNode(; common_data = common_data, field = field_data, restrictions = restrictions)
+        return SimpleTreeNode(;
+            common_data = common_data,
+            field = field_data,
+            restrictions = restrictions,
+            enumeration = parse_enumeration(xsd_restriction),
+        )
     end
 end
 

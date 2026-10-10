@@ -33,7 +33,7 @@ function write_node_specific(
 	writeln(xsd_module_builder, IOStruct,
 		"__validated::Bool = true"; indent_level = indent_level + 1)
 
-    has_restrictions = !isnothing(xsd_node.restrictions) && !isempty(xsd_node.restrictions)
+    has_restrictions = !isnothing(xsd_node.restrictions) && !isempty(xsd_node.restrictions) || !isempty(xsd_node.enumeration)
 
 	if has_restrictions
 		write_inner_constructor(xsd_node, xsd_module_builder; indent_level = indent_level + 1)
@@ -67,13 +67,16 @@ const xsd_abstract_type_map = Dict((
 const xsd_abstract_type_by_julia_type = Dict((
 	"Date" => "$ABSTRACT_TYPE_PACKAGE.AbstractXSDDate",
 	"Time" => "$ABSTRACT_TYPE_PACKAGE.AbstractXSDTime",
-	"Vector{UInt8}" => "$ABSTRACT_TYPE_PACKAGE.AbstractXSDBinary"))
+	"Vector{UInt8}" => "$ABSTRACT_TYPE_PACKAGE.AbstractXSDBinary",
+	"Dates.CompoundPeriod" => "$ABSTRACT_TYPE_PACKAGE.AbstractXSDDuration"))
 
 function get_supertype(type_string::AbstractString)
 	if type_string == "Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}"
 		supertype_value = Dates.AbstractDateTime
 	elseif type_string == "Vector{UInt8}"
 		supertype_value = DenseVector{UInt8}
+	elseif type_string == "Dates.CompoundPeriod"
+		supertype_value = Dates.AbstractTime
 	else
 		supertype_value = supertype(eval(Symbol(type_string)))
 	end
@@ -128,6 +131,13 @@ const JULIA_SUPER_TYPES = Dict(
     "Union{DateTimeNs{ZonedDateTime}, DateTimeNs{DateTime}}" => "Dates.AbstractDateTime",
     "Int64" => "Number",
     "UInt64" => "Number",
+    "Float32" => "Number",
+    "Int32" => "Number",
+    "Int16" => "Number",
+    "Int8" => "Number",
+    "UInt32" => "Number",
+    "UInt16" => "Number",
+    "UInt8" => "Number",
     "AbstractXsdTypes.AbstractXSDString" => "AbstractString",
     "AbstractXsdTypes.AbstractXSDFloat" => "Number",
     "AbstractXsdTypes.AbstractXSDSigned" => "Number",
@@ -139,6 +149,9 @@ const JULIA_SUPER_TYPES = Dict(
     "AbstractXsdTypes.AbstractXSDTime" => "Dates.TimeType",
     "Vector{UInt8}" => "AbstractVector{UInt8}",
     "AbstractXsdTypes.AbstractXSDBinary" => "AbstractVector{UInt8}",
+    # A single period such as `Day(1)` converts to the field's `Dates.CompoundPeriod`.
+    "Dates.CompoundPeriod" => "Union{Dates.Period, Dates.CompoundPeriod}",
+    "AbstractXsdTypes.AbstractXSDDuration" => "Union{Dates.Period, Dates.CompoundPeriod}",
 )
 function write_inner_constructor(
 	xsd_node::SimpleTreeNode,

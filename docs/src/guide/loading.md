@@ -103,13 +103,17 @@ Each object records in `__validated` whether it was checked.
 | element with `minOccurs="0"`, absent | `nothing` |
 | choice | properties named after its members; the absent ones are `nothing` |
 | attributes of an element | `Dict{String, String}` in the `__xml_attributes` field |
-| `xs:string` | `String` |
+| `xs:string`, `xs:normalizedString`, `xs:token`, `xs:language`, `xs:Name`, `xs:NCName`, `xs:NMTOKEN`, `xs:ID`, `xs:IDREF`, `xs:ENTITY`, `xs:anyURI`, `xs:QName` | `String` |
 | `xs:decimal`, `xs:double` | `Float64` |
-| `xs:integer`, `xs:int` | `Int64` |
-| `xs:nonNegativeInteger`, `xs:positiveInteger` | `UInt64` |
+| `xs:float` | `Float32` |
+| `xs:integer`, `xs:int`, `xs:long`, `xs:negativeInteger`, `xs:nonPositiveInteger` | `Int64` |
+| `xs:short`, `xs:byte` | `Int16`, `Int8` |
+| `xs:nonNegativeInteger`, `xs:positiveInteger`, `xs:unsignedLong` | `UInt64` |
+| `xs:unsignedInt`, `xs:unsignedShort`, `xs:unsignedByte` | `UInt32`, `UInt16`, `UInt8` |
 | `xs:boolean` | `Bool` |
 | `xs:dateTime` | `DateTimeNs{ZonedDateTime}` with a zone offset, `DateTimeNs{DateTime}` without |
 | `xs:date`, `xs:time` | `Date`, `Time` |
+| `xs:duration` | `Dates.CompoundPeriod`, such as `Day(1) + Hour(2)` for `P1DT2H` |
 | `xs:base64Binary` | `Vector{UInt8}`, decoded |
 | simple type with a restriction | a struct wrapping the value, checked on construction |
 

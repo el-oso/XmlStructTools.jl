@@ -51,6 +51,12 @@ Base.@kwdef struct TestSimpleType2 <: AbstractXsdTypes.AbstractXSDString
     end
 end
 
+@inline AbstractXsdTypes.get_max_string_length(::Type{TestSimpleType2})::Int = 4
+@inline AbstractXsdTypes.get_string_pattern_regex(::Type{TestSimpleType2})::Regex = r"\A(?:([0-9A-Z]{4})?)\z"
+
+@inline AbstractXsdTypes.get_restriction_checks(::Type{TestSimpleType2}) = (
+    AbstractXsdTypes.string_pattern_restriction_check, AbstractXsdTypes.string_length_restriction_check,)
+
 export TestSimpleType2
 
 module TestComplexType5Types
@@ -78,6 +84,11 @@ module TestComplexType5Types
         end
     end
 
+    @inline AbstractXsdTypes.get_max_string_length(::Type{Element_simple1})::Int = 10
+
+    @inline AbstractXsdTypes.get_restriction_checks(::Type{Element_simple1}) = (
+        AbstractXsdTypes.string_length_restriction_check,)
+
     """
     An example of a simple xsd type.
     """
@@ -95,6 +106,11 @@ module TestComplexType5Types
             return new(value, __xml_attributes, __validated)
         end
     end
+
+    @inline AbstractXsdTypes.get_max_string_length(::Type{Element_simple2})::Int = 10
+
+    @inline AbstractXsdTypes.get_restriction_checks(::Type{Element_simple2}) = (
+        AbstractXsdTypes.string_length_restriction_check,)
 
 end
 

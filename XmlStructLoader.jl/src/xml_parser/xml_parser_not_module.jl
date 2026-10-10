@@ -68,6 +68,18 @@ end
 
 function parse_xml_node_not_module(
     xml_node::UnifiedXMLElement,
+    ::Type{Dates.CompoundPeriod},
+    module_ref::Module,
+    validate::Bool,
+    default_value::Union{Nothing,Dates.CompoundPeriod},
+)::Union{Nothing,Dates.CompoundPeriod}
+    content_string = content(xml_node)
+    isempty(content_string) && return default_value
+    return AbstractXsdTypes.parse_xsd_duration(content_string)
+end
+
+function parse_xml_node_not_module(
+    xml_node::UnifiedXMLElement,
     ::Type{<:AbstractXsdTypes.DateTimeNs},
     module_ref::Module,
     validate::Bool,

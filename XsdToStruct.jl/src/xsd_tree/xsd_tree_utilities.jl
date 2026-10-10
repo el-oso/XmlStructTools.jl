@@ -124,7 +124,8 @@ function create_SchemaTreeNode(;
     requires_Dates =
         requires_TimeZones ||
         has_xsd_type_node(all_nodes, "date") ||
-        has_xsd_type_node(all_nodes, "time")
+        has_xsd_type_node(all_nodes, "time") ||
+        has_xsd_type_node(all_nodes, "duration")
 
     return SchemaTreeNode(
         common_data = CommonNodeData(name = name, attributes = attributes),
