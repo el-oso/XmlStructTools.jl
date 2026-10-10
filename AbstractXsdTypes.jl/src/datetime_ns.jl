@@ -170,8 +170,11 @@ Dates.Time(x::DateTimeNs) = Dates.Time(x.datetime) + Dates.Nanosecond(x.nanoseco
 Dates.datetime2unix(x::DateTimeNs{Dates.DateTime}) = Dates.datetime2unix(x.datetime) + x.nanoseconds / 1e9
 Dates.datetime2julian(x::DateTimeNs{Dates.DateTime}) =
     Dates.datetime2julian(x.datetime) + x.nanoseconds / (86_400 * 1e9)
-Dates.isoyear(x::DateTimeNs) = Dates.isoyear(x.datetime)
-Dates.isoweekdate(x::DateTimeNs) = Dates.isoweekdate(x.datetime)
+# `isoyear` and `isoweekdate` are in Dates from Julia 1.11.
+@static if isdefined(Dates, :isoyear)
+    Dates.isoyear(x::DateTimeNs) = Dates.isoyear(x.datetime)
+    Dates.isoweekdate(x::DateTimeNs) = Dates.isoweekdate(x.datetime)
+end
 
 for P in (:Year, :Quarter, :Month, :Week, :Day, :Hour, :Minute, :Second, :Millisecond)
     @eval Dates.$P(x::DateTimeNs) = Dates.$P(x.datetime)

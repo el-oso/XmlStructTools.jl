@@ -381,6 +381,9 @@ can_be_converted(from::Type, to::Type) = false
 
 Base.convert(::Type{T}, value) where {T<:AbstractXSDUnion} = T(value)
 Base.convert(::Type{T}, union::AbstractXSDUnion) where {T} = convert(T, union.value)
+# More specific than both the method above and `convert(::Type{Any}, x)`, which are ambiguous for a
+# union stored in a `Vector{Any}`.
+Base.convert(::Type{Any}, union::AbstractXSDUnion) = union
 
 public_propertynames(::Type{T}) where {T<:AbstractXSDSimpleUnionTypes} = (:value,)
 

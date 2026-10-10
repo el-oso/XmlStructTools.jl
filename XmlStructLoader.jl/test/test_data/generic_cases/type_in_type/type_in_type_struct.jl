@@ -14,7 +14,7 @@ Base.@kwdef struct TestSimpleType1 <: AbstractXsdTypes.AbstractXSDString
     __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
     __validated::Bool = true
     function TestSimpleType1(
-        value::AbstractString,
+        value::Base.AbstractString,
         __xml_attributes::Union{Nothing, Dict{String, String}}=nothing,
         __validated::Bool=true)
         if __validated
@@ -97,7 +97,7 @@ Base.@kwdef struct TestSimpleType2 <: AbstractXsdTypes.AbstractXSDString
     __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
     __validated::Bool = true
     function TestSimpleType2(
-        value::AbstractString,
+        value::Base.AbstractString,
         __xml_attributes::Union{Nothing, Dict{String, String}}=nothing,
         __validated::Bool=true)
         if __validated

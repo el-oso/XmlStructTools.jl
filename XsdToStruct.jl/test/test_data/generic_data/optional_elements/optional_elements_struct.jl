@@ -14,7 +14,7 @@ Base.@kwdef struct TestSimpleType1 <: AbstractXsdTypes.AbstractXSDFloat
     __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
     __validated::Bool = true
     function TestSimpleType1(
-        value::Number,
+        value::Base.Number,
         __xml_attributes::Union{Nothing, Dict{String, String}}=nothing,
         __validated::Bool=true)
         if __validated
@@ -41,7 +41,7 @@ Base.@kwdef struct TestSimpleType2 <: AbstractXsdTypes.AbstractXSDString
     __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
     __validated::Bool = true
     function TestSimpleType2(
-        value::AbstractString,
+        value::Base.AbstractString,
         __xml_attributes::Union{Nothing, Dict{String, String}}=nothing,
         __validated::Bool=true)
         if __validated
@@ -74,7 +74,7 @@ module TestComplexType5Types
         __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
         __validated::Bool = true
         function Element_simple1(
-            value::AbstractString,
+            value::Base.AbstractString,
             __xml_attributes::Union{Nothing, Dict{String, String}}=nothing,
             __validated::Bool=true)
             if __validated
@@ -97,7 +97,7 @@ module TestComplexType5Types
         __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
         __validated::Bool = true
         function Element_simple2(
-            value::AbstractString,
+            value::Base.AbstractString,
             __xml_attributes::Union{Nothing, Dict{String, String}}=nothing,
             __validated::Bool=true)
             if __validated

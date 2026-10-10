@@ -56,7 +56,7 @@ module TestComplexType2Types
         __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
         __validated::Bool = true
         function choice3(
-            value::AbstractString,
+            value::Base.AbstractString,
             __xml_attributes::Union{Nothing, Dict{String, String}}=nothing,
             __validated::Bool=true)
             if __validated

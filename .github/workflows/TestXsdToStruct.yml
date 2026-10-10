@@ -24,10 +24,12 @@ jobs:
           version: ${{ inputs.version }}
           arch: ${{ inputs.arch }}
       - uses: julia-actions/cache@v3
+      # Julia 1.12 and later resolve the sibling packages through the repository's Pkg workspace,
+      # which conflicts with adding them by path; earlier versions ignore the workspace.
       - name: Install local XmlStructPugixml
-        run: julia --project=XsdToStruct.jl -e 'using Pkg; Pkg.add(path=".", subdir="XmlStructPugixml.jl");'
+        run: julia --project=XsdToStruct.jl -e 'VERSION >= v"1.12" && exit(); using Pkg; Pkg.add(path=".", subdir="XmlStructPugixml.jl");'
       - name: Install local AbstractXsdTypes
-        run: julia --project=XsdToStruct.jl -e 'using Pkg; Pkg.add(path=".", subdir="AbstractXsdTypes.jl");'
+        run: julia --project=XsdToStruct.jl -e 'VERSION >= v"1.12" && exit(); using Pkg; Pkg.add(path=".", subdir="AbstractXsdTypes.jl");'
       - uses: julia-actions/julia-buildpkg@v1
         with:
           project: XsdToStruct.jl

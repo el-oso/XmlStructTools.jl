@@ -82,7 +82,9 @@ end
     @test (Year(x), Quarter(x), Month(x), Week(x), Day(x)) == (Year(2022), Quarter(2), Month(5), Week(19), Day(10))
     @test (Hour(x), Minute(x), Second(x), Millisecond(x)) == (Hour(10), Minute(22), Second(49), Millisecond(152))
     @test (Microsecond(x), Nanosecond(x)) == (Microsecond(557), Nanosecond(500))
-    @test (isoyear(x), isoweekdate(x)) == (isoyear(base), isoweekdate(base))
+    @static if isdefined(Dates, :isoyear)
+        @test (isoyear(x), isoweekdate(x)) == (isoyear(base), isoweekdate(base))
+    end
     @test datetime2julian(x) ≈ datetime2julian(base) + 557_500e-9 / 86_400
 
     @test convert(Date, x) == Date(2022, 5, 10)

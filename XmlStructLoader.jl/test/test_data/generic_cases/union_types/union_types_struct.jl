@@ -14,7 +14,7 @@ module TestDoubleRestrictedDoubleTypes
         __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
         __validated::Bool = true
         function type_1(
-            value::Number,
+            value::Base.Number,
             __xml_attributes::Union{Nothing, Dict{String, String}}=nothing,
             __validated::Bool=true)
             if __validated
@@ -40,7 +40,7 @@ module TestDoubleRestrictedDoubleTypes
         __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
         __validated::Bool = true
         function type_2(
-            value::Number,
+            value::Base.Number,
             __xml_attributes::Union{Nothing, Dict{String, String}}=nothing,
             __validated::Bool=true)
             if __validated
@@ -83,7 +83,7 @@ module UnionTypeTypes
         __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
         __validated::Bool = true
         function type_1(
-            value::Number,
+            value::Base.Number,
             __xml_attributes::Union{Nothing, Dict{String, String}}=nothing,
             __validated::Bool=true)
             if __validated

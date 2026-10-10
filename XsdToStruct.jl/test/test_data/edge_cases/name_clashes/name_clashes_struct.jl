@@ -22,7 +22,7 @@ Base.@kwdef struct Float64_mapped <: AbstractXsdTypes.AbstractXSDString
     __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
     __validated::Bool = true
     function Float64_mapped(
-        value::AbstractString,
+        value::Base.AbstractString,
         __xml_attributes::Union{Nothing, Dict{String, String}}=nothing,
         __validated::Bool=true)
         if __validated
@@ -59,7 +59,7 @@ Base.@kwdef struct TestElement3_mapped <: AbstractXsdTypes.AbstractXSDString
     __xml_attributes::Union{Nothing, Dict{String, String}} = nothing
     __validated::Bool = true
     function TestElement3_mapped(
-        value::AbstractString,
+        value::Base.AbstractString,
         __xml_attributes::Union{Nothing, Dict{String, String}}=nothing,
         __validated::Bool=true)
         if __validated
