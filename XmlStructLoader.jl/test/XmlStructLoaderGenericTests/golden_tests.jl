@@ -85,7 +85,8 @@ end
                 write(golden_path, actual)
                 @info "wrote golden for $name ($(length(actual)) bytes)"
             end
-            expected = read(golden_path, String)
+            # A Windows checkout may give the golden CRLF line endings.
+            expected = replace(read(golden_path, String), "\r\n" => "\n")
             if actual != expected
                 # Show the first difference rather than two walls of text.
                 a = split(actual, '\n')
